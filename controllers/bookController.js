@@ -7,14 +7,14 @@ export const addNewBook = async (req, res, next) => {
     try {
         console.log(req.body);
 
-        const { title, description, excerpt, page_count, genre, language, author, publish_date } = req.body
+        const {image , title, description, excerpt, page_count, genre, language, author, publish_date,prize ,category  } = req.body
 
-        if (!title | !description | !page_count | !publish_date | !author | !genre | !language) {
+        if ( !image | !title | !description | !page_count | !publish_date | !author | !genre | !language | !prize |! category) {
 
             return res.status(400).json({
                 success: false,
                 error: true,
-                message: "Required fields: title, author, pageCount, publishDate"
+                message: "Required fields: title, author, pageCount, publishDate ,prize"
             });
         }
 
@@ -26,9 +26,18 @@ export const addNewBook = async (req, res, next) => {
                 message: "Invalid publishDate format"
             });
         }
+
+
+         if (Number(prize) > 15000) {
+      return res.status(400).json({
+        success: false,
+        error: true,
+        message: "please give a valide prize",
+      });
+    }
         const book = {
-            title: title.trim(), description, excerpt, page_count: Number(page_count), genre, language,
-            author: author.trim(), publish_date: date
+          image, title: title.trim(), description, excerpt, page_count: Number(page_count), genre, language,
+            author: author.trim(), publish_date: date,prize:Number(prize),category
         }
 
         const newBook = new Book(book)
@@ -57,36 +66,68 @@ export const addNewBook = async (req, res, next) => {
 
 // list books
 export const listBooks = async (req, res, next) => {
-    try {
+  try {
+    const page = parseInt(req.query.page) || 1;      
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const search = req.query.search || "";
 
-        let books = await Book.find()
-        if (books.length == 0) {
-            return res.status(404).json({
-                success: false,
-                error: true,
-                message: "books not listed",
-            });
-        }
-        else {
-            return res.status(200).json({
-                success: true,
-                error: false,
-                message: "Books listed successfully",
-                data: books
-            })
-        }
-    } catch (err) {
+    let searchQuery = { is_deleted: false };
 
-        next(err)
-    }
+if (search) {
+    
+ 
+  const priceValue = parseInt(search);
+  if (!isNaN(priceValue)) {
+   
+    searchQuery.prize = priceValue;
+  } else {
+    
+    searchQuery.$or = [
+      { title: { $regex: search, $options: "i" } }, 
+      { genre: { $regex: search, $options: "i" } },
+    ];
+  }
+}
+
+   const total = await Book.countDocuments(searchQuery);
+   const totalPages = Math.ceil(total / limit);
+
+
+const currentPage = page > totalPages && totalPages > 0 ? totalPages : page;
+const skip = (currentPage - 1) * limit;
+
+const books = await Book.find(searchQuery).sort({createdAt:-1})
+  .skip(skip)
+  .limit(limit);
+
+return res.status(200).json({
+  success: true,
+  error: false,
+  message: books.length ? "Books listed successfully" : "No books found",
+  data: books,
+  pagination: {
+    total,
+    page: currentPage,
+    limit,
+    totalPages,
+  },
+});
+  } catch (err) {
+    next(err);
+  }
 };
+
+
+
+
 
 
 // get a single book
 export const getSingleBook = async (req, res, next) => {
     try {
 
-        const id = req.params.id;
+        const id = req.params.id.trim();
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
@@ -95,7 +136,7 @@ export const getSingleBook = async (req, res, next) => {
             });
         }
         else {
-            const book = await Book.findById(id)
+            const book = await Book.findById(id).select(' _id  author description excerpt genre image language page_count prize title category publish_date')
 
             if (!book) {
                 return res.status(404).json({
@@ -136,7 +177,7 @@ export const updateBook = async (req, res, next) => {
             });
         }
         else {
-            const updated = await Book.findByIdAndUpdate(id, { $set: book }, { new: true, runValidators: true })
+            const updated = await Book.findByIdAndUpdate(id, { $set: book }, { new: true })
 
             if (!updated) {
                 return res.status(404).json({
@@ -189,7 +230,6 @@ export const deleteBook = async (req, res, next) => {
                     data: deleted
                 });
             }
-
         }
 
     } catch (error) {
@@ -198,6 +238,27 @@ export const deleteBook = async (req, res, next) => {
 };
 
 
+
+// newly added books
+
+export const getNewlyAddedBooks = async (req, res, next) => {
+  try {
+    // Fetch 8 most recently added books that are not deleted
+    const books = await Book.find({ is_deleted: false })
+      .sort({ createdAt: -1 }) // newest first
+      .limit(8);
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      message: books.length ? "Newly added books fetched successfully" : "No books found",
+      data: books,
+    });
+  } catch (error) {
+    console.error("Error fetching newly added books:", error);
+    next(error);
+  }
+};
 
 
 

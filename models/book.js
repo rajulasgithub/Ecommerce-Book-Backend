@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 
 const bookSchema = new mongoose.Schema({
+  image: {
+    type: String,
+    required: true,
+  },
   title: {
     type: String,
     required: true,
-    unique: true
+    unique: false
   },
   description: {
     type: String,
@@ -34,12 +38,22 @@ const bookSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  prize: {
+    type: Number,
+    required: true,
+  },
+  category: {
+  type: String,
+  enum: ["Academic", "Fiction", "Non-Fiction", "Comics", "Children", "Poetry"],
+  required: true,
+},
   is_deleted: {
     type: Boolean,
     default: false
   },
 
-});
+},
+{timestamps: true});
 
 export const Book = mongoose.model("books", bookSchema);
 
