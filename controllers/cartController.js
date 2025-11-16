@@ -1,221 +1,158 @@
 import { Cart } from "../models/cart.js";
 
-
+// add to cart
 export const addToCart = async (req, res, next) => {
   try {
     const bookId = req.params.id;
 
     if (!bookId) {
-      return res.status(400).json({
-        success: false,
-        error: true,
-        message: "Book ID is required",
-      });
+      return next(new HttpError("Book ID is required", 400));
+    } 
+    else {
+      let cart = await Cart.findOne() || new Cart({ items: [] });
+
+      const alreadyExists = cart.items.some(
+        (item) => item.book.toString() === bookId
+      );
+
+      if (alreadyExists) {
+        return next(new HttpError("Book is already in the cart", 400));
+      } 
+      else {
+        cart.items.push({ book: bookId });
+        await cart.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Book added to cart",
+          cart
+        });
+      }
     }
-
-   
-    let cart = await Cart.findOne();
-    if (!cart) {
-      cart = new Cart({ items: [] });
-    }
-
-    const itemIndex = cart.items.findIndex(
-  (item) => item.book.toString() === bookId
-);
-
-if (itemIndex > -1) {
-
-  return res.status(200).json({
-    success: false,
-    message: "Book is already in the cart",
-  
-  });
-} else {
-  
-  cart.items.push({ book: bookId }); 
-  await cart.save();
-
-  return res.status(200).json({
-    success: true,
-    message: "Book added to cart",
-   
-  });
-}
   } catch (error) {
-    next(error);
+    return next(new HttpError(error.message, 500));
   }
 };
 
-
-
 // listing all cart items
-
 export const getCartItems = async (req, res, next) => {
   try {
-   
     const cart = await Cart.findOne().populate("items.book");
 
     if (!cart || cart.items.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "Cart is empty",
-        data: [],
-      });
-    }
+      return next(new HttpError("Cart is empty", 400));
+    } 
+    else {
+      const cartItems = cart.items.map((item) => ({
+        bookId: item.book._id,
+        title: item.book.title,
+        prize: item.book.prize,
+        genre: item.book.genre,
+        image: item.book.image,
+        quantity: item.quantity
+      }));
 
-    else{
-  const cartItems = cart.items.map((item) => ({
-      bookId: item.book._id,
-      title: item.book.title,
-      prize: item.book.prize,
-      genre: item.book.genre,
-      image: item.book.image,
-      quantity: item.quantity,
- 
-    }));
-
-    return res.status(200).json({
-      success: true,
-      message: "Cart items retrieved successfully",
-      data: cartItems,
-    });
+      if (cartItems) {
+        return res.status(200).json({
+          success: true,
+          message: "Cart items retrieved successfully",
+          data: cartItems
+        });
+      } 
+      else {
+        return next(new HttpError("Cart items not found", 404));
+      }
     }
-    
-  
   } catch (error) {
-    console.error("Error fetching cart items:", error);
-    next(error);
+     return next(new HttpError(error.message, 500));
   }
 };
 
-
 // removeCartItem
-
-
 export const removeCartItem = async (req, res, next) => {
   try {
     const bookId = req.params.id;
 
     if (!bookId) {
-      return res.status(400).json({
-        success: false,
-        message: "Book ID is required",
-      });
-    }
+      return next(new HttpError("Book ID is required", 400));
+    } 
+    else {
+      const cart = await Cart.findOne();
 
-    
-    const cart = await Cart.findOne();
-
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: "Cart not found",
-      });
-    }
-    else{
-
+      if (!cart) {
+        return next(new HttpError("Cart is Empty", 400));
+      } 
+      else {
         const itemIndex = cart.items.findIndex(
-      (item) => item.book.toString() === bookId
-    );
+          (item) => item.book.toString() === bookId
+        );
 
-    if (itemIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: "Book not found in the cart",
-      });
+        if (itemIndex === -1) {
+          return next(new HttpError("Book Not Found In the Cart", 404));
+        } 
+        else {
+          cart.items.splice(itemIndex, 1);
+          await cart.save();
+
+          return res.status(200).json({
+            success: true,
+            message: "Book removed from cart",
+            data: cart.items
+          });
+        }
+      }
     }
-    else{
-cart.items.splice(itemIndex, 1);
-    await cart.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Book removed from cart",
-      data: cart.items,
-    });
-    }
-      
-    }
-
-    
-  
-
- 
-    
   } catch (error) {
-    console.error("Error removing cart item:", error);
-    next(error);
+    return next(new HttpError(error.message, 500));
   }
 };
 
-
 // clear the cart
-
-
 export const clearCart = async (req, res, next) => {
   try {
-   
     const cart = await Cart.findOne();
 
     if (!cart || cart.items.length === 0) {
+      return next(new HttpError("Cart is already empty", 400));
+    } 
+    else {
+      cart.items = [];
+      await cart.save();
+
       return res.status(200).json({
         success: true,
-        message: "Cart is already empty",
-        data: [],
+        message: "All items removed from cart",
+        data: cart.items
       });
     }
-    else{
-   cart.items = [];
-    await cart.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "All items removed from cart",
-      data: cart.items, 
-    });
-    }
-
-   
-   
   } catch (error) {
-    console.error("Error clearing cart:", error);
-    next(error);
+    return next(new HttpError(error.message, 500));
   }
 };
 
-
-
 // upadte quantity
-
-export const updateQuantity = async (req, res) => {
+export const updateQuantity = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { quantity } = req.body;
-    console.log(id,quantity)
 
-  
     const cart = await Cart.findOneAndUpdate(
       { "items.book": id },
       { $set: { "items.$.quantity": quantity } },
       { new: true }
-    ).populate("items.book"); 
+    ).populate("items.book");
 
     if (!cart) {
-      return res.status(404).json({ success: false, message: "Cart not found" });
+      return next(new HttpError("Cart not found", 404));
+    } 
+    else {
+      return res.status(200).json({
+        success: true,
+        message: "Quantity updated successfully",
+        data: cart
+      });
     }
-    else{
-  res.status(200).json({
-      success: true,
-      message: "Quantity updated successfully",
-      data: cart,
-    });
-    }
-  
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error updating quantity",
-      error: error.message,
-    });
+   return next(new HttpError(error.message, 500));
   }
 };

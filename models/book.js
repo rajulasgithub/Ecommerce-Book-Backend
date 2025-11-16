@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 
 const bookSchema = new mongoose.Schema({
+  UserId:{
+    type:mongoose.Types.ObjectId, ref:"users",required:true
+  },
   image: {
     type: String,
     required: true,

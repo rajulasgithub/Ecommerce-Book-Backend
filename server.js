@@ -15,21 +15,18 @@ app.use(cors())
 
 connectDB()
 
-// app.use((err, req, res, next) => {
+app.use((err, req, res, next) => {
+    console.error("Error middleware triggered:", err);
 
-//     console.error(err)
-//     res.status(500).json({
-//         error: "something went wrong",
-//         errorMessage: err.message
-//     })
-// })
+    const statusCode = err.code || 500;
 
-app.use((error, req, res, next) => {
-  if (res.headersSent) {
-    return next(error);
-  }
-  res.status(error.code || 500).json({ message: error.message || "An unknown error occurred!" });
+    res.status(statusCode).json({
+        success: false,
+        message: err.message || "Something went wrong"
+    });
 });
+
+
 
 app.use('/api/books',bookRoutes)
 app.use('/api/cart',cartRoutes)
