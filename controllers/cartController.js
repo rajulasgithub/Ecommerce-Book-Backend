@@ -1,15 +1,17 @@
+import HttpError from "../helpers/httpError.js";
 import { Cart } from "../models/cart.js";
 
 // add to cart
 export const addToCart = async (req, res, next) => {
   try {
     const bookId = req.params.id;
+    const user= req.userData.userId
 
     if (!bookId) {
       return next(new HttpError("Book ID is required", 400));
     } 
     else {
-      let cart = await Cart.findOne() || new Cart({ items: [] });
+      let cart = await Cart.findOne({user}) || new Cart({user, items: [] });
 
       const alreadyExists = cart.items.some(
         (item) => item.book.toString() === bookId
@@ -37,7 +39,8 @@ export const addToCart = async (req, res, next) => {
 // listing all cart items
 export const getCartItems = async (req, res, next) => {
   try {
-    const cart = await Cart.findOne().populate("items.book");
+    const user = req.userData.userId
+    const cart = await Cart.findOne({user}).populate("items.book");
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is empty", 400));
@@ -72,12 +75,13 @@ export const getCartItems = async (req, res, next) => {
 export const removeCartItem = async (req, res, next) => {
   try {
     const bookId = req.params.id;
+    const user = req.userData.userId
 
     if (!bookId) {
       return next(new HttpError("Book ID is required", 400));
     } 
     else {
-      const cart = await Cart.findOne();
+      const cart = await Cart.findOne({user});
 
       if (!cart) {
         return next(new HttpError("Cart is Empty", 400));
@@ -110,7 +114,8 @@ export const removeCartItem = async (req, res, next) => {
 // clear the cart
 export const clearCart = async (req, res, next) => {
   try {
-    const cart = await Cart.findOne();
+    const user = req.userData.userId
+    const cart = await Cart.findOne({user});
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is already empty", 400));
@@ -135,9 +140,10 @@ export const updateQuantity = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { quantity } = req.body;
+    const user = req.userData.userId
 
     const cart = await Cart.findOneAndUpdate(
-      { "items.book": id },
+      { user, "items.book": id },
       { $set: { "items.$.quantity": quantity } },
       { new: true }
     ).populate("items.book");

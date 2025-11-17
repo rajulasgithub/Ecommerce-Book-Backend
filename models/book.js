@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const bookSchema = new mongoose.Schema({
-  UserId:{
+  user:{
     type:mongoose.Types.ObjectId, ref:"users",required:true
   },
   image: {

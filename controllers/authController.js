@@ -7,7 +7,7 @@ import HttpError from "../helpers/httpError.js";
 export const userRegister = async (req, res, next) => {
   try {
     const { name, email, phone, password, role } = req.body;
-
+ 
     if (!name || !email || !phone || !password || !role) {
       return next(new HttpError("All fields are required", 400));
     }
@@ -39,8 +39,8 @@ export const userRegister = async (req, res, next) => {
 
         const token = jwt.sign(
           {
-            userId: newUser._id,
-            userRole: newUser.role
+            user_id: newUser._id,
+            role: newUser.role
           },
           process.env.JWT_SECRET,
           { expiresIn: process.env.JWT_TOKEN_EXPIRY }
@@ -86,8 +86,8 @@ export const userLogin = async (req, res, next) => {
 
           const token = jwt.sign(
             {
-              userId: user._id,
-              userRole: user.role
+              user_id: user._id,
+              role: user.role
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_TOKEN_EXPIRY }

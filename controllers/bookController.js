@@ -1,3 +1,4 @@
+import HttpError from "../helpers/httpError.js";
 import { Book } from "../models/book.js";
 import mongoose from "mongoose";
 
@@ -5,8 +6,11 @@ import mongoose from "mongoose";
 export const addNewBook = async (req, res, next) => {
     try {
         console.log(req.body);
+        const user = req.userData.userId
+        console.log(user)
 
         const {
+
             image,
             title,
             description,
@@ -21,6 +25,7 @@ export const addNewBook = async (req, res, next) => {
         } = req.body;
 
         if (
+            !user ||
             !image ||
             !title ||
             !description ||
@@ -44,6 +49,7 @@ export const addNewBook = async (req, res, next) => {
                 return next(new HttpError("Please give me a valid Number", 400));
             } else {
                 const book = {
+                    user,
                     image,
                     title: title.trim(),
                     description,
@@ -256,6 +262,32 @@ export const getNewlyAddedBooks = async (req, res, next) => {
         return next(new HttpError(error.message, 500));
     }
 };
+
+// list all  books of a specific user
+export const getBooksOfSingleUser = async(req,res,next)=>{
+    try{
+       const user = req.userData.userId
+       const userBooks= await Book.find({user})
+     const  bookCount=await Book.countDocuments({user})
+       if(!userBooks || userBooks.length ==0){
+        return next(new HttpError('No book found for this user',404))
+       }
+       else{
+        res.status(200).json({
+            success:true,
+            message:"successfully fetched food",
+            data:userBooks,
+            count:bookCount
+        })
+       }
+    }
+    catch(error){
+        return next(new HttpError(error.message,500))
+
+    }
+}
+
+
 
 
 
