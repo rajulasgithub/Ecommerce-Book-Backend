@@ -7,9 +7,14 @@ export const addNewBook = async (req, res, next) => {
     try {
         console.log(req.body);
         const user = req.userData.userId
-        console.log(user)
+        const role = req.userData.userRole
+         
+        if(role !== "seller"){
+         return next(new HttpError("Only seller can add the book",403))
+        }
+        else{
 
-        const {
+             const {
 
             image,
             title,
@@ -78,6 +83,10 @@ export const addNewBook = async (req, res, next) => {
                 }
             }
         }
+
+        }
+
+       
     } catch (error) {
         return next(new HttpError(error.message, 500));
     }
@@ -85,13 +94,19 @@ export const addNewBook = async (req, res, next) => {
 
 // list books
 export const listBooks = async (req, res, next) => {
+
     try {
+        const role = req.userData.userRole
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const search = req.query.search || "";
 
         let searchQuery = { is_deleted: false };
 
+      if(role !=="customer"){
+          return next(new HttpError("Only customer can list the book",403))
+      }
+      else{
         if (search) {
             const priceValue = parseInt(search);
 
@@ -135,7 +150,11 @@ export const listBooks = async (req, res, next) => {
                 return next(new HttpError("No books found", 500));
             }
 
-        }
+        }       
+      }
+       
+             
+       
     } catch (error) {
         return next(new HttpError(error.message, 500));
     }
@@ -174,10 +193,17 @@ export const getSingleBook = async (req, res, next) => {
 // update a single book
 export const updateBook = async (req, res, next) => {
     try {
+        const role = req.userData.userRole
         const id = req.params.id;
         const book = req.body;
+        console.log(role)
 
-        if (book.publish_date) {
+
+        if(role !=="seller"){
+            return next(new HttpError("Only sellers can update books", 403));
+        }
+        else{
+             if (book.publish_date) {
             book.publish_date = new Date(book.publish_date);
         }
 
@@ -203,6 +229,10 @@ export const updateBook = async (req, res, next) => {
                 });
             }
         }
+
+        }
+
+       
     } catch (error) {
         return next(new HttpError(error.message, 500));
     }
@@ -212,7 +242,13 @@ export const updateBook = async (req, res, next) => {
 export const deleteBook = async (req, res, next) => {
     try {
         const id = req.params.id;
+         const role = req.userData.userRole
 
+         if(role !=="seller"){
+             return next(new HttpError("Only sellers can delete books", 403));
+         }
+         else{
+            
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return next(new HttpError("Invalid Book ID", 400));
         }
@@ -235,6 +271,9 @@ export const deleteBook = async (req, res, next) => {
                 });
             }
         }
+
+         }
+
     } catch (error) {
         return next(new HttpError(error.message, 500));
     }
@@ -267,7 +306,14 @@ export const getNewlyAddedBooks = async (req, res, next) => {
 export const getBooksOfSingleUser = async(req,res,next)=>{
     try{
        const user = req.userData.userId
-       const userBooks= await Book.find({user})
+       const role = req.userData.userRole
+       console.log(role)
+
+       if(role !=="seller"){
+        return next(new HttpError("Only sellers can view their books", 403));
+       }
+       else{
+        const userBooks= await Book.find({user})
      const  bookCount=await Book.countDocuments({user})
        if(!userBooks || userBooks.length ==0){
         return next(new HttpError('No book found for this user',404))
@@ -280,6 +326,9 @@ export const getBooksOfSingleUser = async(req,res,next)=>{
             count:bookCount
         })
        }
+
+       }
+       
     }
     catch(error){
         return next(new HttpError(error.message,500))

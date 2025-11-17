@@ -7,19 +7,19 @@ const bookRoutes = express.Router()
 
 
 
-bookRoutes.get('/viewbooks', listBooks)
+bookRoutes.get('/viewbooks',userAuthCheck, listBooks)
 
 bookRoutes.post('/addbook',userAuthCheck, addNewBook)
 
 bookRoutes.get('/viewbook/:id', getSingleBook)
 
-bookRoutes.patch('/deletetbook/:id', deleteBook)
+bookRoutes.patch('/deletetbook/:id',userAuthCheck, deleteBook)
 
-bookRoutes.patch('/updatebook/:id', updateBook)
+bookRoutes.patch('/updatebook/:id',userAuthCheck, updateBook)
 
 bookRoutes.get('/newlyaddedbook', getNewlyAddedBooks)
 
-bookRoutes.get('/userbooks',userAuthCheck ,getBooksOfSingleUser)
+bookRoutes.get('/adminbooks',userAuthCheck ,getBooksOfSingleUser)
 
 
 

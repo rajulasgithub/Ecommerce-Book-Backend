@@ -6,8 +6,13 @@ export const addToCart = async (req, res, next) => {
   try {
     const bookId = req.params.id;
     const user= req.userData.userId
+    const role= req.userData.userRole
 
-    if (!bookId) {
+   if(role !== "customer"){
+    return next(new HttpError("Only customers  can add books to cart", 403));
+   }
+   else{
+     if (!bookId) {
       return next(new HttpError("Book ID is required", 400));
     } 
     else {
@@ -31,6 +36,10 @@ export const addToCart = async (req, res, next) => {
         });
       }
     }
+
+   }
+
+   
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
@@ -40,7 +49,12 @@ export const addToCart = async (req, res, next) => {
 export const getCartItems = async (req, res, next) => {
   try {
     const user = req.userData.userId
-    const cart = await Cart.findOne({user}).populate("items.book");
+    const role = req.userData.userRole
+if(role !=="customer"){
+   return next(new HttpError("Only customers can get cart items ", 403));
+}
+else{
+ const cart = await Cart.findOne({user}).populate("items.book");
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is empty", 400));
@@ -66,6 +80,9 @@ export const getCartItems = async (req, res, next) => {
         return next(new HttpError("Cart items not found", 404));
       }
     }
+}
+
+   
   } catch (error) {
      return next(new HttpError(error.message, 500));
   }
@@ -76,8 +93,13 @@ export const removeCartItem = async (req, res, next) => {
   try {
     const bookId = req.params.id;
     const user = req.userData.userId
+    const role = req.userData.userRole
 
-    if (!bookId) {
+    if(role !== "customer"){
+       return next(new HttpError("Only customer can remove from cart ", 403));
+    }
+    else{
+       if (!bookId) {
       return next(new HttpError("Book ID is required", 400));
     } 
     else {
@@ -106,6 +128,10 @@ export const removeCartItem = async (req, res, next) => {
         }
       }
     }
+
+    }
+
+   
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
@@ -115,7 +141,13 @@ export const removeCartItem = async (req, res, next) => {
 export const clearCart = async (req, res, next) => {
   try {
     const user = req.userData.userId
-    const cart = await Cart.findOne({user});
+    const role = req.userData.userRole
+
+    if(role !=="customer"){
+          return next(new HttpError("Only customer can clear cart", 403));
+    }
+    else{
+      const cart = await Cart.findOne({user});
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is already empty", 400));
@@ -130,6 +162,9 @@ export const clearCart = async (req, res, next) => {
         data: cart.items
       });
     }
+    }
+
+    
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
@@ -141,8 +176,13 @@ export const updateQuantity = async (req, res, next) => {
     const { id } = req.params;
     const { quantity } = req.body;
     const user = req.userData.userId
+    const role = req.userData.userRole
 
-    const cart = await Cart.findOneAndUpdate(
+    if(role !== "customer"){
+         return next(new HttpError("Only customer can update cart", 403));
+    }
+    else{
+ const cart = await Cart.findOneAndUpdate(
       { user, "items.book": id },
       { $set: { "items.$.quantity": quantity } },
       { new: true }
@@ -158,6 +198,9 @@ export const updateQuantity = async (req, res, next) => {
         data: cart
       });
     }
+    }
+
+   
   } catch (error) {
    return next(new HttpError(error.message, 500));
   }
