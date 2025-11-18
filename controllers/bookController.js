@@ -1,3 +1,4 @@
+import { validationResult } from "express-validator";
 import HttpError from "../helpers/httpError.js";
 import { Book } from "../models/book.js";
 import mongoose from "mongoose";
@@ -94,81 +95,84 @@ export const addNewBook = async (req, res, next) => {
 
 // list books
 export const listBooks = async (req, res, next) => {
+  try {
+    const role = req.userData.userRole;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
 
-    try {
-        const role = req.userData.userRole
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const search = req.query.search || "";
-
-        let searchQuery = { is_deleted: false };
-
-      if(role !=="customer"){
-          return next(new HttpError("Only customer can list the book",403))
-      }
-      else{
-        if (search) {
-            const priceValue = parseInt(search);
-
-            if (!isNaN(priceValue)) {
-                searchQuery.prize = priceValue;
-            } else {
-                searchQuery.$or = [
-                    { title: { $regex: search, $options: "i" } },
-                    { genre: { $regex: search, $options: "i" } }
-                ];
-            }
-        } else {
-            const total = await Book.countDocuments(searchQuery);
-            const totalPages = Math.ceil(total / limit);
-
-            const currentPage =
-                page > totalPages && totalPages > 0 ? totalPages : page;
-
-            const skip = (currentPage - 1) * limit;
-
-            const books = await Book.find(searchQuery)
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit);
-
-            if (books) {
-                return res.status(200).json({
-                    success: true,
-                    error: false,
-                    message: "Books listed successfully",
-                    data: books,
-                    pagination: {
-                        total,
-                        page: currentPage,
-                        limit,
-                        totalPages
-                    }
-                });
-            }
-            else {
-                return next(new HttpError("No books found", 500));
-            }
-
-        }       
-      }
-       
-             
-       
-    } catch (error) {
-        return next(new HttpError(error.message, 500));
+    if (role !== "customer") {
+      return next(new HttpError("Only customer can list the book", 403));
     }
+    else{
+         let searchQuery = { is_deleted: false };
+
+ 
+    if (search.trim() !== "") {
+      const priceValue = parseInt(search);
+
+      if (!isNaN(priceValue)) {
+     
+        searchQuery.prize = priceValue;
+      } else {
+   
+        searchQuery.$or = [
+          { title: { $regex: search, $options: "i" } },
+          { genre: { $regex: search, $options: "i" } }
+        ];
+      }
+    }
+
+  
+    const total = await Book.countDocuments(searchQuery);
+
+    const totalPages = Math.ceil(total / limit);
+    const currentPage =
+      page > totalPages && totalPages > 0 ? totalPages : page;
+
+    const skip = (currentPage - 1) * limit;
+
+    const books = await Book.find(searchQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      message: "Books listed successfully",
+      data: books,
+      pagination: {
+        total,
+        page: currentPage,
+        limit,
+        totalPages,
+      },
+    });
+
+    }
+
+   
+
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
 };
+
 
 // get a single book
 export const getSingleBook = async (req, res, next) => {
     try {
-        const id = req.params.id.trim();
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return next(new HttpError("Invalid Book ID", 400));
+       const errors = validationResult(req)
+
+
+        if (!errors.isEmpty()) {
+            return next(new HttpError("Invalid data inputs passed", 400));
         }
         else {
+            const id = req.params.id.trim();
+
             const book = await Book.findById(id).select(
                 "_id author description excerpt genre image language page_count prize title category publish_date"
             );
@@ -303,38 +307,68 @@ export const getNewlyAddedBooks = async (req, res, next) => {
 };
 
 // list all  books of a specific user
-export const getBooksOfSingleUser = async(req,res,next)=>{
-    try{
-       const user = req.userData.userId
-       const role = req.userData.userRole
-       console.log(role)
+export const getBooksOfSingleUser = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
 
-       if(role !=="seller"){
-        return next(new HttpError("Only sellers can view their books", 403));
-       }
-       else{
-        const userBooks= await Book.find({user})
-     const  bookCount=await Book.countDocuments({user})
-       if(!userBooks || userBooks.length ==0){
-        return next(new HttpError('No book found for this user',404))
-       }
-       else{
-        res.status(200).json({
-            success:true,
-            message:"successfully fetched food",
-            data:userBooks,
-            count:bookCount
-        })
-       }
+    const user = req.userData.userId;
+    const role = req.userData.userRole;
 
-       }
-       
+    console.log(page,limit,search,user,role)
+
+    if (role !== "seller") {
+      return next(new HttpError("Only sellers can view their books", 403));
     }
-    catch(error){
-        return next(new HttpError(error.message,500))
 
+    let searchQuery = {
+      is_deleted: false,
+      user: user,   // very important!
+    };
+
+    if (search.trim() !== "") {
+      const priceValue = parseInt(search);
+
+      if (!isNaN(priceValue)) {
+        searchQuery.prize = priceValue;
+      } else {
+        searchQuery.$or = [
+          { title: { $regex: search, $options: "i" } },
+          { genre: { $regex: search, $options: "i" } },
+        ];
+      }
     }
-}
+
+    const total = await Book.countDocuments(searchQuery);
+    const totalPages = Math.ceil(total / limit);
+
+    const currentPage =
+      page > totalPages && totalPages > 0 ? totalPages : page;
+
+    const skip = (currentPage - 1) * limit;
+
+    const userBooks = await Book.find(searchQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+      console.log(userBooks)
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully fetched books",
+      data: userBooks,
+      pagination: {
+        total,
+        page: currentPage,
+        limit,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};
 
 
 

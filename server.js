@@ -15,24 +15,15 @@ app.use(cors())
 
 connectDB()
 
-app.use((err, req, res, next) => {
-    console.error("Error middleware triggered:", err);
-
-    const statusCode = err.code || 500;
-
-    res.status(statusCode).json({
-        success: false,
-        message: err.message || "Something went wrong"
-    });
-});
-
-
-
 app.use('/api/books',bookRoutes)
 app.use('/api/cart',cartRoutes)
 app.use('/api/user',authRoutes)
 
-
+app.use((error,req, res,next) => {
+    res.status(error.code || 500).json({
+        message: error.message || "An unknown error occurred",
+    });
+});
 
 app.listen(process.env.PORT,()=>{
     console.log("server running on  port 8000")

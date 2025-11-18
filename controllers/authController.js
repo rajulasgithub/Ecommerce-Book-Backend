@@ -2,16 +2,20 @@ import { User } from "../models/user.js";
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import HttpError from "../helpers/httpError.js";
+import { validationResult } from "express-validator";
 
 // user register
 export const userRegister = async (req, res, next) => {
   try {
-    const { name, email, phone, password, role } = req.body;
- 
-    if (!name || !email || !phone || !password || !role) {
-      return next(new HttpError("All fields are required", 400));
+    const errors = validationResult(req)
+     console.log(errors)
+    if (!errors.isEmpty()) {
+      return next(new HttpError("Invalid data inputs passed", 400));
     }
     else {
+
+    const { name, email, phone, password, role } = req.body;
+
       const existingUser = await User.findOne({
         $or: [{ email }, { phone }]
       });
@@ -66,16 +70,19 @@ export const userRegister = async (req, res, next) => {
 // user login
 export const userLogin = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const errors = validationResult(req)
 
-    if (!email || !password) {
-      return next(new HttpError("Email and password are required", 400));
+    if (!errors.isEmpty()) {
+      console.error("error:",errors)
+      return next(new HttpError("Invalid data inputs passed", 400));
     } else {
+
+      const { email, password } = req.body;
 
       const user = await User.findOne({ email }).select("_id name email phone role password");
 
       if (!user) {
-        return next(new HttpError("Invalid email", 400));
+        return next(new HttpError("User not found", 404));
       } else {
 
         const isMatch = await bcrypt.compare(password, user.password);
