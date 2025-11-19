@@ -4,29 +4,29 @@ import { Cart } from "../models/cart.js";
 // add to cart
 export const addToCart = async (req, res, next) => {
   try {
-    const bookId = req.params.id;
-    const user= req.userData.userId
-    const role= req.userData.userRole
+    const {id} = req.params;
+    const {userId, userRole}= req.userData
+  
 
-   if(role !== "customer"){
+   if(userRole !== "customer"){
     return next(new HttpError("Only customers  can add books to cart", 403));
    }
    else{
-     if (!bookId) {
+     if (!id) {
       return next(new HttpError("Book ID is required", 400));
     } 
     else {
-      let cart = await Cart.findOne({user}) || new Cart({user, items: [] });
+      let cart = await Cart.findOne({user:userId}) || new Cart({user:userId, items: [] });
 
       const alreadyExists = cart.items.some(
-        (item) => item.book.toString() === bookId
+        (item) => item.book.toString() === id
       );
 
       if (alreadyExists) {
         return next(new HttpError("Book is already in the cart", 400));
       } 
       else {
-        cart.items.push({ book: bookId });
+        cart.items.push({ book: id });
         await cart.save();
 
         return res.status(200).json({
@@ -48,13 +48,13 @@ export const addToCart = async (req, res, next) => {
 // listing all cart items
 export const getCartItems = async (req, res, next) => {
   try {
-    const user = req.userData.userId
-    const role = req.userData.userRole
-if(role !=="customer"){
-   return next(new HttpError("Only customers can get cart items ", 403));
-}
-else{
- const cart = await Cart.findOne({user}).populate("items.book");
+    const {userId,userRole} = req.userData
+    
+  if(userRole !=="customer"){
+    return next(new HttpError("Only customers can get cart items ", 403));
+  }
+    else{
+    const cart = await Cart.findOne({user:userId}).populate("items.book");
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is empty", 400));
@@ -81,8 +81,7 @@ else{
       }
     }
 }
-
-   
+  
   } catch (error) {
      return next(new HttpError(error.message, 500));
   }
@@ -91,26 +90,25 @@ else{
 // removeCartItem
 export const removeCartItem = async (req, res, next) => {
   try {
-    const bookId = req.params.id;
-    const user = req.userData.userId
-    const role = req.userData.userRole
-
-    if(role !== "customer"){
+    
+    const {id} = req.params;
+    const {userId, userRole } = req.userData
+    if(userRole !== "customer"){
        return next(new HttpError("Only customer can remove from cart ", 403));
     }
     else{
-       if (!bookId) {
+       if (!id) {
       return next(new HttpError("Book ID is required", 400));
     } 
     else {
-      const cart = await Cart.findOne({user});
+      const cart = await Cart.findOne({user:userId});
 
       if (!cart) {
         return next(new HttpError("Cart is Empty", 400));
       } 
       else {
         const itemIndex = cart.items.findIndex(
-          (item) => item.book.toString() === bookId
+          (item) => item.book.toString() === id
         );
 
         if (itemIndex === -1) {
@@ -137,17 +135,19 @@ export const removeCartItem = async (req, res, next) => {
   }
 };
 
+
+
 // clear the cart
 export const clearCart = async (req, res, next) => {
   try {
-    const user = req.userData.userId
-    const role = req.userData.userRole
+    const {userId,userRole} = req.userData
+    
 
-    if(role !=="customer"){
+    if(userRole !=="customer"){
           return next(new HttpError("Only customer can clear cart", 403));
     }
     else{
-      const cart = await Cart.findOne({user});
+      const cart = await Cart.findOne({user:userId});
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is already empty", 400));
@@ -175,15 +175,15 @@ export const updateQuantity = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { quantity } = req.body;
-    const user = req.userData.userId
-    const role = req.userData.userRole
+    const {userId,userRole }= req.userData
+    
 
-    if(role !== "customer"){
+    if(userRole !== "customer"){
          return next(new HttpError("Only customer can update cart", 403));
     }
     else{
- const cart = await Cart.findOneAndUpdate(
-      { user, "items.book": id },
+    const cart = await Cart.findOneAndUpdate(
+      { user:userId, "items.book": id },
       { $set: { "items.$.quantity": quantity } },
       { new: true }
     ).populate("items.book");
@@ -199,8 +199,7 @@ export const updateQuantity = async (req, res, next) => {
       });
     }
     }
-
-   
+  
   } catch (error) {
    return next(new HttpError(error.message, 500));
   }
