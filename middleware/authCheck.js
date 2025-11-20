@@ -12,7 +12,7 @@ const userAuthCheck = async (req, res, next) => {
     if (! token) {
         return next(new HttpError("Authentication Failed", 403))
     } else {
-      console.log(token)
+      // console.log(token)
       const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findOne({ _id: decodedToken.user_id })
   

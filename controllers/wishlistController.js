@@ -1,0 +1,187 @@
+import HttpError from "../helpers/httpError.js"
+import { Wishlist } from "../models/wishlist.js"
+
+
+
+export const addToWishList = async (req, res, next) => {
+  try {
+    const { userId, userRole } = req.userData;
+    const { id } = req.params;
+
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can add to wishlist", 403));
+    }
+
+    if (!id) {
+      return next(new HttpError("Book id is required", 400));
+    }
+
+    
+    let wishlist = await Wishlist.findOne({ user: userId });
+
+    if (!wishlist) {
+      wishlist = new Wishlist({ user: userId, items: [] });
+    }
+
+   
+    const alreadyExists = wishlist.items.some(
+      (item) => item.book.toString() === id
+    );
+
+    if (alreadyExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Item is already in your wishlist",
+      });
+    }
+
+    
+    wishlist.items.push({ book: id });
+    await wishlist.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Item successfully added to wishlist",
+      data: wishlist,
+    });
+
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};
+
+
+
+export const getAllWishList = async (req, res, next) => {
+  try {
+    const { userId, userRole } = req.userData;
+
+    // ROLE CHECK
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can list wishlist", 403));
+    }
+
+    // USER ID CHECK
+    if (!userId) {
+      return next(new HttpError("User ID is required", 400));
+    }
+
+    // FIND WISHLIST + POPULATE
+    const wishlist = await Wishlist.findOne({ user: userId })
+      .populate("items.book");
+
+    // EMPTY CASE
+    if (!wishlist || wishlist.items.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Wishlist is empty",
+        data: [],
+      });
+    }
+
+    // FLATTEN DATA (NO NESTED book)
+    const wishlistItems = wishlist.items.map((item) => ({
+      bookId: item.book._id,
+      title: item.book.title,
+      description: item.book.description,
+      excerpt: item.book.excerpt,
+      page_count: item.book.page_count,
+      publish_date: item.book.publish_date,
+      author: item.book.author,
+      genre: item.book.genre,
+      language: item.book.language,
+      prize: item.book.prize,
+      category: item.book.category,
+      image: item.book.image,
+      addedAt: item.addedAt,
+    }));
+
+    // SUCCESS RESPONSE
+    return res.status(200).json({
+      success: true,
+      message: "Wishlist fetched successfully",
+      data: wishlistItems,
+    });
+
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};
+
+
+
+export const removeWishList=async (req,res,next)=>{
+    try{
+       const   {userId,userRole} = req.userData
+       const   {id} = req.params
+           if(userRole !=="customer"){
+           return next(new HttpError("Only customers remove whislist Item"))
+         }else{
+             if(!id){
+                return next(new HttpError(" Book Id is required",400))
+             }
+             else{
+                const wishlist= await Wishlist.findOne({user:userId})
+                if(!wishlist){
+                    return next(new HttpError("Wishlist  not found",404))
+                }
+                else{
+                 const Index=wishlist.items.findIndex((item)=>  item.book.toString()===id)
+                    if(Index === -1){
+                        return next(new HttpError("Book Not Found In the wishlist", 404));
+                    }
+                    else{
+                    wishlist.items.splice(Index,1)
+                    await wishlist.save()
+                     return res.status(200).json({
+                        success: true,
+                        message: "successfully removed from wishlist",
+                        data: wishlist.items,
+                    });
+
+                    }
+                }
+
+             }
+         }
+}
+    catch(error){
+        return next(new HttpError(`${error.message}`))
+    }
+
+}
+
+
+
+export const clearWishList = async (req, res, next) => {
+  try {
+    const { userId, userRole } = req.userData;
+     console.log(userId, userRole)
+    
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can clear the cart", 403));
+    }
+    else{
+    const wishlist = await Wishlist.findOne({ user: userId });
+
+    if (!wishlist) {
+      return next(new HttpError("Cart not found", 404));
+    }
+    else{
+         wishlist.items = [];
+
+  
+    await wishlist.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "All cart items have been removed",
+      data: wishlist,
+    });
+
+    }
+    }
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};

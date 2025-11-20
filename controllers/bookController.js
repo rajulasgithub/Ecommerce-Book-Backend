@@ -26,7 +26,9 @@ export const addNewBook = async (req, res, next) => {
         }
         else{
 
-          const {image, title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
+          const {title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
+          console.log(req.file, 'file')
+          const imagePath = req.file ? req.file.path : null; 
           const date = new Date(publish_date);
 
             if (isNaN(date)) {
@@ -38,7 +40,7 @@ export const addNewBook = async (req, res, next) => {
             } else {
                 const book = {
                     user:userId,
-                    image,
+                    image: imagePath,
                     title: title.trim(),
                     description,
                     excerpt,
@@ -81,6 +83,7 @@ export const listBooks = async (req, res, next) => {
   try {
 
     const error = validationResult(req)
+    
     if(!error.isEmpty()){
       return next(new HttpError("Invalid User Input", 400));
     }
@@ -182,32 +185,57 @@ export const getSingleBook = async (req, res, next) => {
 // update a single book
 export const updateBook = async (req, res, next) => {
   try {
-
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
-    else{
 
     const { userRole, userId } = req.userData;
+
     if (userRole !== "seller") {
       return next(new HttpError("Only sellers can update books", 403));
     }
-    else{
-      const { id } = req.params;
-    const updatedData = { ...req.body }; 
 
-  
+    const { id } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return next(new HttpError("Invalid Book ID", 400));
     }
 
-   
-    if (updatedData.publish_date) {
-      updatedData.publish_date = new Date(updatedData.publish_date);
+    // Start from body
+    const updatedData = { ...req.body };
+
+    // If image was uploaded, update it
+    if (req.file) {
+      updatedData.image = req.file.path;
     }
 
-  
+    // Convert publish_date if present
+    if (updatedData.publish_date) {
+      const date = new Date(updatedData.publish_date);
+      if (isNaN(date)) {
+        return next(new HttpError("Invalid publish_date format", 400));
+      }
+      updatedData.publish_date = date;
+    }
+
+    // Convert page_count if present
+    if (updatedData.page_count !== undefined) {
+      updatedData.page_count = Number(updatedData.page_count);
+    }
+
+    // Convert prize if present and validate
+    if (updatedData.prize !== undefined) {
+      const prizeNum = Number(updatedData.prize);
+      if (isNaN(prizeNum) || prizeNum > 15000) {
+        return next(new HttpError("Please give me a valid Number", 400));
+      }
+      updatedData.prize = prizeNum;
+    }
+
+    // If you want to always keep the owner:
+    updatedData.user = userId;
+
     const updatedBook = await Book.findByIdAndUpdate(
       id,
       { $set: updatedData },
@@ -224,16 +252,11 @@ export const updateBook = async (req, res, next) => {
       message: "Successfully updated book",
       data: updatedBook,
     });
-
-
-    }
-
-    } 
-    
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
+
 
 
 

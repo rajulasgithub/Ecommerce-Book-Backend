@@ -122,3 +122,37 @@ export const userLogin = async (req, res, next) => {
   }
 };
 
+
+
+export const resetPasswordDirect = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return next(new HttpError("New password is required", 400));
+    }
+
+    // find user
+    const user = await User.findById(id);
+
+    if (!user) {
+      return next(new HttpError("User not found", 404));
+
+    }
+
+    // hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    user.password = hashedPassword;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password reset successfully",
+      userId: user._id
+    });
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};

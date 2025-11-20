@@ -2,10 +2,21 @@ import express from 'express'
 import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook ,getNewlyAddedBooks} from '../controllers/bookController.js'
 import userAuthCheck from '../middleware/authCheck.js'
 import {  check} from 'express-validator'
+import upload from '../middleware/fileUpload.js'
+
+
+
 
 
 const bookRoutes = express.Router()
 
+
+
+// Single file upload
+// router.post('/add', upload.single('attachment'), addBook);
+
+// Multiple file upload
+// router.post('/add', upload.array('attachment', 5), addBook);
 
 bookRoutes.get('/viewbook/:id', getSingleBook)
 
@@ -21,7 +32,7 @@ bookRoutes.get('/viewbooks',[
     check("search").optional().trim().isString().withMessage("Search must be a string"),
 ], listBooks)
 
-bookRoutes.post('/addbook',[ check("image").trim().notEmpty().withMessage("Image URL is required").isURL().withMessage("Image must be a valid URL"),
+bookRoutes.post('/addbook', upload.single('image'), [
     check("title").trim().notEmpty().withMessage("Title is required").isLength({ min: 5 }).withMessage("Title must be at least 2 characters"),
     check("description").trim().notEmpty().withMessage("Description is required").isLength({ min: 20 }).withMessage("Description must be at least 20 characters"),
     check("excerpt").trim().notEmpty().withMessage("Excerpt is required").isLength({ min: 10 }).withMessage("Excerpt must be at least 10 characters"),
@@ -35,8 +46,7 @@ bookRoutes.post('/addbook',[ check("image").trim().notEmpty().withMessage("Image
 ], addNewBook)
 
 
-bookRoutes.patch('/updatebook/:id',[
-    check("image").optional().trim().isURL().withMessage("Image must be a valid URL"),
+bookRoutes.patch('/updatebook/:id',upload.single('image'),[
     check("title").optional().trim().notEmpty().withMessage("Title cannot be empty").isLength({ min: 2 }).withMessage("Title must be at least 2 characters"),
     check("description").optional().trim().notEmpty().withMessage("Description cannot be empty").isLength({ min: 20 }).withMessage("Description must be at least 20 characters"),
     check("excerpt").optional().trim().notEmpty().withMessage("Excerpt cannot be empty").isLength({ min: 10 }).withMessage("Excerpt must be at least 10 characters"),

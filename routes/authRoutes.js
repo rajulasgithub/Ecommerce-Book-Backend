@@ -1,5 +1,5 @@
 import express from 'express'
-import {userRegister, userLogin } from '../controllers/authController.js'
+import {userRegister, userLogin, resetPasswordDirect } from '../controllers/authController.js'
 import checkAuth from '../middleware/authCheck.js'
 import { check } from 'express-validator'
 
@@ -19,5 +19,7 @@ authRoutes.post('/login', [
     check("email").notEmpty().withMessage("Email is required").isEmail().withMessage("Invalid email format"),
     check("password").notEmpty().withMessage("Password is required")
 ], userLogin )
+
+authRoutes.post('/reset/:id', resetPasswordDirect )
 
 export default authRoutes       
