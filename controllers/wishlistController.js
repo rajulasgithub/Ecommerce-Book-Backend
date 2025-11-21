@@ -56,21 +56,21 @@ export const getAllWishList = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
 
-    // ROLE CHECK
+    
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can list wishlist", 403));
     }
 
-    // USER ID CHECK
+  
     if (!userId) {
       return next(new HttpError("User ID is required", 400));
     }
 
-    // FIND WISHLIST + POPULATE
+   
     const wishlist = await Wishlist.findOne({ user: userId })
       .populate("items.book");
 
-    // EMPTY CASE
+   
     if (!wishlist || wishlist.items.length === 0) {
       return res.status(200).json({
         success: true,
@@ -79,7 +79,7 @@ export const getAllWishList = async (req, res, next) => {
       });
     }
 
-    // FLATTEN DATA (NO NESTED book)
+ 
     const wishlistItems = wishlist.items.map((item) => ({
       bookId: item.book._id,
       title: item.book.title,
@@ -96,7 +96,7 @@ export const getAllWishList = async (req, res, next) => {
       addedAt: item.addedAt,
     }));
 
-    // SUCCESS RESPONSE
+  
     return res.status(200).json({
       success: true,
       message: "Wishlist fetched successfully",

@@ -5,10 +5,9 @@ import mongoose from "mongoose";
 
 
 
-// add a new book
+
 export const addNewBook = async (req, res, next) => {
     try {
-
       const error = validationResult(req)
       console.log(error)
 
@@ -189,28 +188,28 @@ export const updateBook = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
-
-    const { userRole, userId } = req.userData;
+    else{
+      const { userRole, userId } = req.userData;
 
     if (userRole !== "seller") {
       return next(new HttpError("Only sellers can update books", 403));
     }
+    else{
 
-    const { id } = req.params;
+      const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return next(new HttpError("Invalid Book ID", 400));
     }
 
-    // Start from body
+   
     const updatedData = { ...req.body };
 
-    // If image was uploaded, update it
     if (req.file) {
       updatedData.image = req.file.path;
     }
 
-    // Convert publish_date if present
+ 
     if (updatedData.publish_date) {
       const date = new Date(updatedData.publish_date);
       if (isNaN(date)) {
@@ -219,12 +218,10 @@ export const updateBook = async (req, res, next) => {
       updatedData.publish_date = date;
     }
 
-    // Convert page_count if present
     if (updatedData.page_count !== undefined) {
       updatedData.page_count = Number(updatedData.page_count);
     }
 
-    // Convert prize if present and validate
     if (updatedData.prize !== undefined) {
       const prizeNum = Number(updatedData.prize);
       if (isNaN(prizeNum) || prizeNum > 15000) {
@@ -233,7 +230,7 @@ export const updateBook = async (req, res, next) => {
       updatedData.prize = prizeNum;
     }
 
-    // If you want to always keep the owner:
+   
     updatedData.user = userId;
 
     const updatedBook = await Book.findByIdAndUpdate(
@@ -245,13 +242,24 @@ export const updateBook = async (req, res, next) => {
     if (!updatedBook) {
       return next(new HttpError("Book Not Found", 404));
     }
-
-    return res.status(200).json({
+    else{
+       return res.status(200).json({
       success: true,
       error: false,
       message: "Successfully updated book",
       data: updatedBook,
     });
+
+    }
+
+
+      
+    }
+
+    
+    }
+
+    
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }

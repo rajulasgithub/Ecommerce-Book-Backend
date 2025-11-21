@@ -53,7 +53,7 @@ export const userRegister = async (req, res, next) => {
         return res.status(201).json({
           message: "User registered successfully",
           data: {
-            // id: newUser._id,
+        
             name: newUser.name,
             email: newUser.email,
             phone: newUser.phone
@@ -133,7 +133,7 @@ export const resetPasswordDirect = async (req, res, next) => {
       return next(new HttpError("New password is required", 400));
     }
 
-    // find user
+
     const user = await User.findById(id);
 
     if (!user) {
@@ -141,7 +141,7 @@ export const resetPasswordDirect = async (req, res, next) => {
 
     }
 
-    // hash new password
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     user.password = hashedPassword;
