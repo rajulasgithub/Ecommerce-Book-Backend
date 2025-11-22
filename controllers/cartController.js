@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import HttpError from "../helpers/httpError.js";
 import { Cart } from "../models/cart.js";
 
@@ -6,16 +7,16 @@ export const addToCart = async (req, res, next) => {
   try {
     const {id} = req.params;
     const {userId, userRole}= req.userData
-  
 
    if(userRole !== "customer"){
     return next(new HttpError("Only customers  can add books to cart", 403));
    }
    else{
-     if (!id) {
-      return next(new HttpError("Book ID is required", 400));
-    } 
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+  return next(new HttpError("Invalid or missing Book ID", 400));
+  }
     else {
+
       let cart = await Cart.findOne({user:userId}) || new Cart({user:userId, items: [] });
 
       const alreadyExists = cart.items.some(
@@ -32,22 +33,21 @@ export const addToCart = async (req, res, next) => {
         return res.status(200).json({
           success: true,
           message: "Book added to cart",
-          cart
         });
       }
     }
-
    }
-
-   
+ 
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
 
+
 // listing all cart items
 export const getCartItems = async (req, res, next) => {
   try {
+    
     const {userId,userRole} = req.userData
     
   if(userRole !=="customer"){
@@ -73,32 +73,33 @@ export const getCartItems = async (req, res, next) => {
         return res.status(200).json({
           success: true,
           message: "Cart items retrieved successfully",
-          data: cartItems
+          data:cartItems
         });
       } 
       else {
         return next(new HttpError("Cart items not found", 404));
       }
     }
-}
-  
+} 
   } catch (error) {
      return next(new HttpError(error.message, 500));
   }
 };
 
+
 // removeCartItem
 export const removeCartItem = async (req, res, next) => {
   try {
     
-    const {id} = req.params;
     const {userId, userRole } = req.userData
     if(userRole !== "customer"){
        return next(new HttpError("Only customer can remove from cart ", 403));
     }
     else{
-       if (!id) {
-      return next(new HttpError("Book ID is required", 400));
+      const {id} = req.params;
+
+       if (!id || !mongoose.Types.ObjectId.isInvalid(id)) {
+      return next(new HttpError("Invalid or missing book id", 400));
     } 
     else {
       const cart = await Cart.findOne({user:userId});
@@ -121,19 +122,17 @@ export const removeCartItem = async (req, res, next) => {
           return res.status(200).json({
             success: true,
             message: "Book removed from cart",
-            data: cart.items
           });
         }
       }
     }
 
     }
-
-   
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
+
 
 
 
@@ -159,33 +158,33 @@ export const clearCart = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         message: "All items removed from cart",
-        data: cart.items
       });
     }
     }
-
     
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
 
+
 // upadte quantity
 export const updateQuantity = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { quantity } = req.body;
+   
     const {userId,userRole }= req.userData
-    
-
+  
     if(userRole !== "customer"){
          return next(new HttpError("Only customer can update cart", 403));
     }
+
     else{
+    const { id } = req.params;
+    const { quantity } = req.body;
+
     const cart = await Cart.findOneAndUpdate(
       { user:userId, "items.book": id },
       { $set: { "items.$.quantity": quantity } },
-      { new: true }
     ).populate("items.book");
 
     if (!cart) {
@@ -195,11 +194,10 @@ export const updateQuantity = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         message: "Quantity updated successfully",
-        data: cart
       });
     }
     }
-  
+
   } catch (error) {
    return next(new HttpError(error.message, 500));
   }
