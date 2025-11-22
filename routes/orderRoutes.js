@@ -1,6 +1,6 @@
 import express from 'express'
 import userAuthCheck from '../middleware/authCheck.js'
-import { orderItems } from '../controllers/orderControllers.js'
+import { getSellerOrders, getUserOrders, orderItems } from '../controllers/orderControllers.js'
 import { check } from 'express-validator'
 
 const orderRoutes = express.Router()
@@ -21,6 +21,9 @@ orderRoutes.post(
   ],
   orderItems
 );
+
+orderRoutes.get('/getallorder', getUserOrders);
+orderRoutes.get('/sellerorder', getSellerOrders);
 
 
 export default orderRoutes

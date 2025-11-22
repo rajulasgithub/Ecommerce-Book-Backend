@@ -4,7 +4,7 @@ const orderSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Types.ObjectId,
-      ref: "users",
+      ref: "User",
       required: true,
     },
 
@@ -12,7 +12,7 @@ const orderSchema = new mongoose.Schema(
       {
         book: {
           type: mongoose.Types.ObjectId,
-          ref: "books",
+          ref: "Book",
           required: true,
         },
         quantity: {

@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
 const bookSchema = new mongoose.Schema({
-  user:{
-    type:mongoose.Types.ObjectId, ref:"users",required:true
+  user: {
+    type: mongoose.Types.ObjectId, ref: "User", required: true
   },
   image: {
     type: String,
@@ -11,14 +11,17 @@ const bookSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
+    trim:true
   },
   description: {
     type: String,
     required: true,
+    trim:true
   },
   excerpt: {
     type: String,
     required: false,
+    trim:true
   },
   page_count: {
     type: Number,
@@ -31,31 +34,34 @@ const bookSchema = new mongoose.Schema({
   author: {
     type: String,
     required: true,
+    trim:true
   },
   genre: {
     type: String,
     required: true,
+    trim:true
   },
   language: {
     type: String,
     required: true,
+    trim:true
   },
   prize: {
     type: Number,
     required: true,
   },
   category: {
-  type: String,
-  enum: ["Academic", "Fiction", "Non-Fiction", "Comics", "Children", "Poetry"],
-  required: true,
-},
+    type: String,
+    enum: ["Academic", "Fiction", "Non-Fiction", "Comics", "Children", "Poetry"],
+    required: true,  
+  },
   is_deleted: {
     type: Boolean,
     default: false
   },
 
 },
-{timestamps: true});
+  { timestamps: true });
 
-export const Book = mongoose.model("books", bookSchema);
+export const Book = mongoose.model("Book", bookSchema);
 

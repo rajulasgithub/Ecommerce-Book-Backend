@@ -4,19 +4,15 @@ import { Book } from "../models/book.js";
 import mongoose from "mongoose";
 
 
-
-
 export const addNewBook = async (req, res, next) => {
     try {
       const error = validationResult(req)
       console.log(error)
 
       if(!error.isEmpty()){
-         return next(new HttpError("Invalid User Input", 400));
-         
+         return next(new HttpError("Invalid User Input", 400));   
       }
       else{
-
         const {userId} = req.userData
         const {userRole} = req.userData  
 
@@ -26,27 +22,19 @@ export const addNewBook = async (req, res, next) => {
         else{
 
           const {title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
-          console.log(req.file, 'file')
           const imagePath = req.file ? req.file.path : null; 
           const date = new Date(publish_date);
 
-            if (isNaN(date)) {
-                return next(new HttpError("Invalid publish_date format", 400));
-            }
-
-            if (Number(prize) > 15000) {
-                return next(new HttpError("Please give me a valid Number", 400));
-            } else {
-                const book = {
+                 const book = {
                     user:userId,
                     image: imagePath,
-                    title: title.trim(),
+                    title,
                     description,
                     excerpt,
                     page_count: Number(page_count),
                     genre,
                     language,
-                    author: author.trim(),
+                    author,
                     publish_date: date,
                     prize: Number(prize),
                     category
@@ -56,24 +44,18 @@ export const addNewBook = async (req, res, next) => {
                 await newBook.save();
 
                 if (!newBook) {
-                    return next(new HttpError("Book Not Found", 400));
+                    return next(new HttpError("Book not added", 400));
                 } else {
                     return res.status(201).json({
                         success: true,
-                        error: false,
                         message: "Successfully added book",
-                        data: newBook
                     });
                 }
-            }
-
         }
-
-        }   
-       
+        }        
     } catch (error) {
         return next(new HttpError(error.message, 500));
-    }
+          }
 };
 
 
@@ -87,16 +69,15 @@ export const listBooks = async (req, res, next) => {
       return next(new HttpError("Invalid User Input", 400));
     }
     else{
-
     const { userRole, userId } = req.userData;
     let { page, limit, search = "" } = req.query;
 
-    page = Number(page) || 1;
-    limit = Number(limit) || 10;
-
+    page = Number(page) 
+    limit = Number(limit) 
+    
     let searchQuery = { is_deleted: false };
 
-    if (search.trim()) {
+    if (search) {
       const priceValue = Number(search);
 
       if (!isNaN(priceValue)) {
@@ -108,7 +89,6 @@ export const listBooks = async (req, res, next) => {
         ];
       }
     }
-
     if (userRole === "seller") {
       searchQuery.user = userId;  
     }
@@ -148,7 +128,6 @@ export const listBooks = async (req, res, next) => {
 };
 
 
-
 // get a single book
 export const getSingleBook = async (req, res, next) => {
     try {
@@ -164,12 +143,11 @@ export const getSingleBook = async (req, res, next) => {
                 "_id author description excerpt genre image language page_count prize title category publish_date"
             );
             if (!book) {
-                return next(new HttpError("Book Not Found", 400));
+                return next(new HttpError("Book Not Found", 404));
             }
             else {
                 return res.status(200).json({
                     success: true,
-                    error: false,
                     message: "Successfully found Book",
                     data: book,
                 });
@@ -180,8 +158,8 @@ export const getSingleBook = async (req, res, next) => {
     }
 };
 
-
 // update a single book
+
 export const updateBook = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -196,76 +174,48 @@ export const updateBook = async (req, res, next) => {
     }
     else{
 
-      const { id } = req.params;
+    const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return next(new HttpError("Invalid Book ID", 400));
     }
+    else{
 
-   
-    const updatedData = { ...req.body };
+      const updatedData = { ...req.body };
+
 
     if (req.file) {
       updatedData.image = req.file.path;
-    }
-
- 
-    if (updatedData.publish_date) {
+    }      
       const date = new Date(updatedData.publish_date);
-      if (isNaN(date)) {
-        return next(new HttpError("Invalid publish_date format", 400));
-      }
       updatedData.publish_date = date;
-    }
-
-    if (updatedData.page_count !== undefined) {
+    
       updatedData.page_count = Number(updatedData.page_count);
-    }
-
-    if (updatedData.prize !== undefined) {
-      const prizeNum = Number(updatedData.prize);
-      if (isNaN(prizeNum) || prizeNum > 15000) {
-        return next(new HttpError("Please give me a valid Number", 400));
-      }
-      updatedData.prize = prizeNum;
-    }
-
-   
-    updatedData.user = userId;
+    
+      updatedData.prize  = Number(updatedData.prize);
+      
 
     const updatedBook = await Book.findByIdAndUpdate(
       id,
-      { $set: updatedData },
-      { new: true }
+      { $set: updatedData } 
     );
 
     if (!updatedBook) {
-      return next(new HttpError("Book Not Found", 404));
+      return next(new HttpError("Book not updated", 400));
     }
     else{
-       return res.status(200).json({
+      return res.status(200).json({
       success: true,
-      error: false,
       message: "Successfully updated book",
-      data: updatedBook,
     });
 
-    }
-
-
-      
-    }
-
-    
-    }
-
+    } }
+  }} 
     
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
-
-
 
 
 // delete a book
@@ -277,31 +227,27 @@ export const deleteBook = async (req, res, next) => {
          if(userRole !=="seller"){
              return next(new HttpError("Only sellers can delete books", 403));
          }
-         else{
-            
+         else{       
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return next(new HttpError("Invalid Book ID", 400));
         }
+
         else {
             const deleted = await Book.findByIdAndUpdate(
-                id,
-                { is_deleted: true },
-                { new: true, runValidators: true }
+                id, { is_deleted: true },
+                {runValidators: true }
             );
 
             if (!deleted) {
-                return next(new HttpError("Task Not Found", 400));
+                return next(new HttpError("Book not deleted", 400));
             }
             else {
                 return res.status(200).json({
                     success: true,
-                    error: false,
-                    message: "Successfully deleted task",
-                    data: deleted
+                    message: "Successfully deleted Book",
                 });
             }
         }
-
          }
     } catch (error) {
         return next(new HttpError(error.message, 500));
