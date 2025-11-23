@@ -85,7 +85,7 @@ export const listBooks = async (req, res, next) => {
       } else {
         searchQuery.$or = [
           { title: { $regex: search, $options: "i" } },
-          { genre: { $regex: search, $options: "i" } }
+          { category: { $regex: search, $options: "i" } },
         ];
       }
     }
