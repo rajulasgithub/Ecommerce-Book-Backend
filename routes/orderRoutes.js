@@ -16,7 +16,13 @@ orderRoutes.post(
       .isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
     check('items.*.price')
       .notEmpty().withMessage('Price is required')
-      .isFloat({ min: 1 }).withMessage('Price must be a positive number')
+      .isFloat({ min: 1 }).withMessage('Price must be a positive number'),
+      check('address.fullName').notEmpty().withMessage('Full name is required'),
+check('address.phone').notEmpty().withMessage('Phone is required'),
+check('address.addressLine1').notEmpty().withMessage('Address Line 1 is required'),
+check('address.city').notEmpty().withMessage('City is required'),
+check('address.state').notEmpty().withMessage('State is required'),
+check('address.pinCode').notEmpty().withMessage('PIN Code is required'),
 
   ],
   orderItems

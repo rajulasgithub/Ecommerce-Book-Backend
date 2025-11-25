@@ -5,48 +5,48 @@ import { Order } from "../models/order.js";
 
 export const orderItems = async (req, res, next) => {
   try {
-    const error = validationResult(req)
-    if(!error.isEmpty()){
-        return next(new HttpError("Invalid User Input", 500));
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return next(new HttpError("Invalid User Input", 400));
     }
-    else{
 
-       const {userId,userRole} = req.userData 
-       if(userRole !=="customer"){
-          return next(new HttpError("only customers are allowed to order items", 500));
-          
-       }
-       else{
-        const { items } = req.body;   
-       const {userId} = req.userData
+    const { userId, userRole } = req.userData;
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers are allowed to order items", 403));
+    }
 
-       const newOrder = new Order({
+    const { items, address, paymentMethod } = req.body;
+    console.log(req.body)
+
+    // Validate that address exists
+    if (!address || !address.fullName || !address.phone || !address.addressLine1 || !address.city || !address.state || !address.pinCode) {
+      return next(new HttpError("Address is incomplete", 400));
+    }
+
+    const newOrder = new Order({
       user: userId,
       items: items.map(item => ({
-        book: item.book,
+        book: item.bookId,
         quantity: item.quantity || 1,
         orderedAt: new Date(),
         price: item.price || null
       })),
+      address,       
+      paymentMethod, 
     });
 
-  
     const savedOrder = await newOrder.save();
-
     const populatedOrder = await savedOrder.populate("items.book");
 
     res.status(201).json({
       message: "Order placed successfully",
       order: populatedOrder,
     });
-
-       }
-    } 
-
   } catch (error) {
     return next(new HttpError(error.message || "Order failed", 500));
   }
 };
+
 
 
 // getallorders
