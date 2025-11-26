@@ -30,6 +30,8 @@ authRoutes.post(
     check("phone")
       .trim()
       .notEmpty()
+      .matches(/^[0-9]+$/)
+      .withMessage("Phone must contain only digits")
       .withMessage("Phone number is required")
       .isNumeric()
       .withMessage("Phone must contain only numbers")
@@ -47,7 +49,15 @@ authRoutes.post(
       .notEmpty()
       .withMessage("Password is required")
       .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters"),
+      .withMessage("Password must be at least 6 characters")
+      .matches(/[A-Z]/)
+      .withMessage("Password must contain at least one uppercase letter")
+      .matches(/[a-z]/)
+      .withMessage("Password must contain at least one lowercase letter")
+      .matches(/[0-9]/)
+      .withMessage("Password must contain at least one number")
+      .matches(/[!@#$%^&*(),.?":{}|<>]/)
+      .withMessage("Password must contain at least one special character"),
 
     check("role")
       .notEmpty()
@@ -57,6 +67,7 @@ authRoutes.post(
   ],
   userRegister
 );
+
 
 authRoutes.post('/login', [
     check("email").

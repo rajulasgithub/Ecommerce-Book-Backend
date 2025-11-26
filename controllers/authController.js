@@ -21,9 +21,7 @@ export const userRegister = async (req, res, next) => {
     else {
 
       const { firstName, lastName, countryCode, phone, email, password, role } = req.body;
-      console.log(req.body);
       
-
       const fullPhone = `${countryCode}${phone}`;
 
       const existingUser = await User.findOne({
@@ -40,8 +38,6 @@ export const userRegister = async (req, res, next) => {
       }
       else {
         const hashedPassword = await bcrypt.hash(password, 10);
-
-    
         const newUser = new User({
           firstName,
           lastName,
@@ -66,9 +62,6 @@ export const userRegister = async (req, res, next) => {
           success:true,
           message: "User registered successfully",
           data: {
-            firstName: newUser.firstName,
-            lastName: newUser.lastName, 
-            fullPhone: newUser.fullPhone,
             email: newUser.email,
             role: newUser.role
           },
@@ -119,10 +112,7 @@ export const userLogin = async (req, res, next) => {
             status: true,
             message: "Login successful",
             data: {
-              id: user._id,
-              name: user.name,
               email: user.email,
-              phone: user.phone,
               role: user.role
             },
             accessToken: token
