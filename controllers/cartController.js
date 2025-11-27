@@ -13,7 +13,7 @@ export const addToCart = async (req, res, next) => {
    }
    else{
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-  return next(new HttpError("Invalid or missing Book ID", 400));
+    return next(new HttpError("Invalid or missing Book ID", 400));
   }
     else {
 
@@ -98,7 +98,7 @@ export const removeCartItem = async (req, res, next) => {
     else{
       const {id} = req.params;
 
-       if (!id || !mongoose.Types.ObjectId.isInvalid(id)) {
+       if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return next(new HttpError("Invalid or missing book id", 400));
     } 
     else {

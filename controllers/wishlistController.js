@@ -1,5 +1,6 @@
 import HttpError from "../helpers/httpError.js"
 import { Wishlist } from "../models/wishlist.js"
+import mongoose from "mongoose";
 
 
 
