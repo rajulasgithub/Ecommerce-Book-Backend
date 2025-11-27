@@ -31,7 +31,7 @@ bookRoutes.get('/viewbooks',[
           
 ], listBooks)
 
-bookRoutes.post('/addbook', upload.single('image'), [
+bookRoutes.post('/addbook', upload.array('image',5), [
     check("title").
         trim().
         notEmpty().withMessage("Title is required").
@@ -93,7 +93,11 @@ bookRoutes.post('/addbook', upload.single('image'), [
         withMessage("Category is required").
         isIn(["Academic","Fiction","Non-Fiction","Comics", "Children","Poetry"]).
         withMessage("Invalid category selected"),
-], addNewBook)
+        
+]
+ 
+
+, addNewBook)
 
 
 

@@ -22,7 +22,7 @@ export const addNewBook = async (req, res, next) => {
         else{
 
           const {title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
-          const imagePath = req.file ? req.file.path : null; 
+          const imagePaths = req.files.map(file => file.path);
           const date = new Date(publish_date);
 
                  const book = {
@@ -55,6 +55,7 @@ export const addNewBook = async (req, res, next) => {
         return next(new HttpError(error.message, 500));
           }
 };
+
 
 
 
@@ -125,6 +126,7 @@ export const listBooks = async (req, res, next) => {
     return next(new HttpError(error.message, 500));
   }
 };
+
 
 
 // get a single book
