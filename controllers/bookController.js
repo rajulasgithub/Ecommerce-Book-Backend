@@ -39,10 +39,8 @@ export const addNewBook = async (req, res, next) => {
                     prize: Number(prize),
                     category
                 };
-
                 const newBook = new Book(book);
                 await newBook.save();
-
                 if (!newBook) {
                     return next(new HttpError("Book not added", 400));
                 } else {
@@ -57,6 +55,7 @@ export const addNewBook = async (req, res, next) => {
         return next(new HttpError(error.message, 500));
           }
 };
+
 
 
 // list books
