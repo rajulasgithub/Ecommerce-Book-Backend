@@ -60,7 +60,6 @@ export const getAllWishList = async (req, res, next) => {
      return next(new HttpError("Wishlist is Empty", 400));
     }
     else{
-
       const wishlistItems = wishlist.items.map((item) => ({
       bookId: item.book._id,
       title: item.book.title,

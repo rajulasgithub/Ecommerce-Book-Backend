@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema(
       enum: ["ordered", "cancelled", "delivered"],
       default: "ordered",
     },
-
+    
     cancelledAt: {
       type: Date,
       default: null,

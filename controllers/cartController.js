@@ -89,8 +89,7 @@ export const getCartItems = async (req, res, next) => {
 
 // removeCartItem
 export const removeCartItem = async (req, res, next) => {
-  try {
-    
+  try {  
     const {userId, userRole } = req.userData
     if(userRole !== "customer"){
        return next(new HttpError("Only customer can remove from cart ", 403));

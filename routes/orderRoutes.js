@@ -25,8 +25,7 @@ orderRoutes.post(
     check('items.*.price')
       .notEmpty().withMessage('Price is required')
       .isFloat({ min: 1 }).withMessage('Price must be a positive number'),
-
-
+      
     check('address.fullName').notEmpty().withMessage('Full name is required'),
     check('address.phone').notEmpty().withMessage('Phone is required'),
     check('address.addressLine1').notEmpty().withMessage('Address Line 1 is required'),

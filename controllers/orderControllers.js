@@ -9,28 +9,14 @@ export const orderItems = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
-
-    const { userId, userRole } = req.userData;
+    else{
+      const { userId, userRole } = req.userData;
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can place orders", 403));
-    }
+    }else{
+      const { items, address } = req.body;
 
-    const { items, address, paymentMethod } = req.body;
-
-    // Address Validation
-    if (
-      !address ||
-      !address.fullName ||
-      !address.phone ||
-      !address.addressLine1 ||
-      !address.city ||
-      !address.state ||
-      !address.pinCode
-    ) {
-      return next(new HttpError("Address is incomplete", 400));
-    }
-
-    // Calculate totals
+   
     const totalQty = items.reduce(
       (sum, item) => sum + (item.quantity || 1),
       0
@@ -41,29 +27,27 @@ export const orderItems = async (req, res, next) => {
       0
     );
 
-    // Create order
+    
     const newOrder = new Order({
       user: userId,
       items: items.map((item) => ({
-        book: item.book,    // Must be book id
-        quantity: item.quantity || 1,
+        book: item.book,   
+        quantity: item.quantity ,
         orderedAt: new Date(),
-        price: item.price || 0,
+        price: item.price 
       })),
       address,
-      paymentMethod,
-      totalQty,        // NEW FIELD
-      totalAmount,     // NEW FIELD
+      totalQty,       
+      totalAmount,     
     });
 
-    const savedOrder = await newOrder.save();
-
-    const populatedOrder = await savedOrder.populate("items.book");
+    await newOrder.save();
 
     res.status(201).json({
+      success:true,
       message: "Order placed successfully",
-      order: populatedOrder,
-    });
+    }); }
+    }
   } catch (error) {
     return next(new HttpError(error.message || "Order failed", 500));
   }
