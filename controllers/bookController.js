@@ -22,7 +22,7 @@ export const addNewBook = async (req, res, next) => {
         else{
 
           const {title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
-          const imagePaths = req.files.map(file => file.path);
+          const imagePath = req.files.map(file => file.path);
           const date = new Date(publish_date);
 
                  const book = {
