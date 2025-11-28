@@ -12,6 +12,7 @@ import { validationResult } from "express-validator";
 // user register
 export const userRegister = async (req, res, next) => {
   try {
+    console.log("body is",req.body)
     const errors = validationResult(req);
     console.log(errors);
 
