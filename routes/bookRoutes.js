@@ -31,7 +31,7 @@ bookRoutes.get('/viewbooks',[
           
 ], listBooks)
 
-bookRoutes.post('/addbook', upload.array('image',5), [
+bookRoutes.post('/addbook', upload.single('image'), [
     check("title").
         trim().
         notEmpty().withMessage("Title is required").
