@@ -165,6 +165,49 @@ export const resetPasswordDirect = async (req, res, next) => {
 
 
 
+export const createAdmin = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+
+   
+    if (!name || !email || !password) {
+      return next(new HttpError("Name, email and password are required", 400));
+    }
+
+   
+    const existingAdmin = await User.findOne({ email });
+    if (existingAdmin) {
+      return next(new HttpError("Admin already exists with this email", 400));
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create admin user
+    const admin = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: "admin", 
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Admin created successfully",
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+      },
+    });
+
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};
+
+
 
 
 

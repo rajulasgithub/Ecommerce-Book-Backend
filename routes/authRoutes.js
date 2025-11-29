@@ -1,5 +1,5 @@
 import express from 'express'
-import {userRegister, userLogin } from '../controllers/authController.js'
+import {userRegister, userLogin, createAdmin } from '../controllers/authController.js'
 import checkAuth from '../middleware/authCheck.js'
 import { check } from 'express-validator'
 import userAuthCheck from '../middleware/authCheck.js'
@@ -7,6 +7,8 @@ import userAuthCheck from '../middleware/authCheck.js'
 
 const authRoutes = express.Router()
 
+authRoutes.post('/createadmin', createAdmin )
+  
 authRoutes.post(
   "/register",
   [
@@ -80,7 +82,7 @@ authRoutes.post('/login', [
       withMessage("Password is required")
 ], userLogin )
 
-authRoutes.use(userAuthCheck)
+
 // authRoutes.post('/send-otp',[ check("email").notEmpty().withMessage("Email is required").isEmail().withMessage("Invalid email format"),], sendOtp )
 // authRoutes.post('/verify-otp',[ check("otp").notEmpty().withMessage("otp is required")], verifyOtp )
 // authRoutes.post('/reset-password',[ check("password").notEmpty().withMessage("password is required"),
