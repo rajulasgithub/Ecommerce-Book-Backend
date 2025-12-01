@@ -20,7 +20,7 @@ export const addNewBook = async (req, res, next) => {
          return next(new HttpError("Only seller can add the book",403))
         }
         else{
-
+ console.log(req.body)
           const {title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
           const imagePath = req.files.map(file => file.path);
           const date = new Date(publish_date);
