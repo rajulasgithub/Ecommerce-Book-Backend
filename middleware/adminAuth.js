@@ -1,8 +1,13 @@
+// adminAuth.js
 import HttpError from "../helpers/httpError.js";
 
 export const adminCheck = (req, res, next) => {
-  if (req.userData.role !== "admin") {
-    return next(new HttpError("Access denied: Admin only", 403));
+  const { userRole } = req.userData;
+  console.log(userRole)
+
+  if (userRole !== "admin") {
+    return next(new HttpError("Access Denied: Admin Only", 403));
   }
+
   next();
 };

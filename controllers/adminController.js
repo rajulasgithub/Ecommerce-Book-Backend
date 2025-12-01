@@ -1,27 +1,32 @@
-import { User } from "../models/user";
+import { User } from "../models/user.js";
 
 
 export const listUsers = async (req, res, next) => {
   try {
-   
-
     const { userRole } = req.userData;
 
-   
     if (userRole !== "admin") {
       return next(new HttpError("Access Denied: Admin Only", 403));
     }
-    else{
 
-    let { page = 1, limit = 10, search = "" } = req.query;
+    let { page = 1, limit = 10, search = "", type = "" } = req.query;
 
     page = Number(page);
     limit = Number(limit);
+
 
     let searchQuery = {
       role: { $in: ["customer", "seller"] }
     };
 
+  
+    if (type === "customer") {
+      searchQuery.role = "customer";
+    } else if (type === "seller") {
+      searchQuery.role = "seller";
+    }
+
+  
     if (search) {
       searchQuery.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -54,8 +59,6 @@ export const listUsers = async (req, res, next) => {
       },
     });
 
-    }
-   
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
