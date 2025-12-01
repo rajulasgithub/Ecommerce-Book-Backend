@@ -5,55 +5,72 @@ import mongoose from "mongoose";
 
 
 export const addNewBook = async (req, res, next) => {
-    try {
-      const error = validationResult(req)
-      console.log(error)
+  try {
+    const error = validationResult(req);
+    console.log("Validation errors:", error);
 
-      if(!error.isEmpty()){
-         return next(new HttpError("Invalid User Input", 400));   
-      }
-      else{
-        const {userId} = req.userData
-        const {userRole} = req.userData  
+    if (!error.isEmpty()) {
+      // Optional: log specific errors
+      console.log("Validation error details:", error.array());
+      return next(new HttpError("Invalid User Input", 400));
+    }
 
-        if(userRole !== "seller"){
-         return next(new HttpError("Only seller can add the book",403))
-        }
-        else{
- console.log(req.body)
-          const {title, description, excerpt, page_count,genre, language, author, publish_date, prize, category} = req.body;
-          const imagePath = req.files.map(file => file.path);
-          const date = new Date(publish_date);
+    const { userId, userRole } = req.userData;
 
-                 const book = {
-                    user:userId,
-                    image: imagePath,
-                    title,
-                    description,
-                    excerpt,
-                    page_count: Number(page_count),
-                    genre,
-                    language,
-                    author,
-                    publish_date: date,
-                    prize: Number(prize),
-                    category
-                };
-                const newBook = new Book(book);
-                await newBook.save();
-                if (!newBook) {
-                    return next(new HttpError("Book not added", 400));
-                } else {
-                    return res.status(201).json({
-                        success: true,
-                        message: "Successfully added book",
-                    });
-                }
-        }
-        }        
-    } catch (error) {
-        return next(new HttpError(error.message, 500));
-          }
+    if (userRole !== "seller") {
+      return next(new HttpError("Only seller can add the book", 403));
+    }
+
+    console.log("Request body:", req.body);
+    console.log("Uploaded file:", req.file);
+
+    const {
+      title,
+      description,
+      excerpt,
+      page_count,
+      genre,
+      language,
+      author,
+      publish_date,
+      prize,
+      category,
+    } = req.body;
+
+    const imagePath = req.file ? req.file.path : null; // ✅ single image
+
+    const date = new Date(publish_date);
+
+    const book = {
+      user: userId,
+      image: imagePath,            // if schema expects a string
+      title,
+      description,
+      excerpt,
+      page_count: Number(page_count),
+      genre,                       // here it's a string "Fiction, Thriller"
+      language,                    // also string "English, Malayalam"
+      author,
+      publish_date: date,
+      prize: Number(prize),
+      category,
+    };
+
+    const newBook = new Book(book);
+    await newBook.save();
+
+    if (!newBook) {
+      return next(new HttpError("Book not added", 400));
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Successfully added book",
+    });
+  } catch (error) {
+    console.error("Add book error:", error);
+    return next(new HttpError(error.message, 500));
+  }
 };
 
 
