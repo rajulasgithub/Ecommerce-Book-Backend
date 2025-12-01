@@ -71,21 +71,15 @@ bookRoutes.post('/addbook', upload.single('image'), [
         isLength({ min: 3 }).
         withMessage("Author name must be at least 3 characters"),
         
-    check("genre")
-        .isArray({ min: 1 })
-        .withMessage("Genres are required"),
+    check("genre").
+        trim().
+        notEmpty().
+        withMessage("Genres are required"),
 
-    check("genre.*")
-        .isString()
-        .withMessage("Each genre must be a string"),
-
-    check("language")
-        .isArray({ min: 1 })
-        .withMessage("Languages are required"),
-
-    check("language.*")
-        .isString()
-        .withMessage("Each language must be a string"),
+    check("language").
+        trim().
+        notEmpty().
+        withMessage("Languages are required"),
 
     check("prize").
         notEmpty().
