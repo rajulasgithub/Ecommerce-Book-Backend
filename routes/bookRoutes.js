@@ -31,73 +31,66 @@ bookRoutes.get('/viewbooks',[
           
 ], listBooks)
 
-bookRoutes.post('/addbook', upload.single('image'), [
-    check("title").
-        trim().
-        notEmpty().withMessage("Title is required").
-        isLength({ min: 5 }).
-        withMessage("Title must be at least 2 characters"),
-
-    check("description").
-        trim().
-        notEmpty().
-        withMessage("Description is required").
-        isLength({ min: 20 }).
-        withMessage("Description must be at least 20 characters"),
-
-    check("excerpt").
-        trim().
-        notEmpty().
-        withMessage("Excerpt is required").
-        isLength({ min: 10 }).
-        withMessage("Excerpt must be at least 10 characters"),
-
-    check("page_count").
-        notEmpty().
-        withMessage("Page count is required").
-        isInt({ min: 1 }).
-        withMessage("Page count must be a positive number"),
-
-    check("publish_date").
-        notEmpty().
-        withMessage("Publish date is required").
-        isISO8601().
-        withMessage("Publish date must be a valid date"),
-
-    check("author").
-        trim().
-        notEmpty().
-        withMessage("Author is required").
-        isLength({ min: 3 }).
-        withMessage("Author name must be at least 3 characters"),
-        
-    check("genre").
-        trim().
-        notEmpty().
-        withMessage("Genres are required"),
-
-    check("language").
-        trim().
-        notEmpty().
-        withMessage("Languages are required"),
-
-    check("prize").
-        notEmpty().
-        withMessage("Price is required").
-        isFloat({ min: 1 }).
-        withMessage("Price must be a positive number"),
-
-    check("category").
-        trim().
-        notEmpty().
-        withMessage("Category is required").
-        isIn(["Academic","Fiction","Non-Fiction","Comics", "Children","Poetry"]).
-        withMessage("Invalid category selected"),
-        
-]
- 
-
-, addNewBook)
+bookRoutes.post(
+  "/addbook",
+  upload.single("image"), // ✅ single file, goes to req.file
+  [
+    check("title")
+      .trim()
+      .notEmpty()
+      .withMessage("Title is required")
+      .isLength({ min: 5 })
+      .withMessage("Title must be at least 5 characters"),
+    check("description")
+      .trim()
+      .notEmpty()
+      .withMessage("Description is required")
+      .isLength({ min: 20 })
+      .withMessage("Description must be at least 20 characters"),
+    check("excerpt")
+      .trim()
+      .notEmpty()
+      .withMessage("Excerpt is required")
+      .isLength({ min: 10 })
+      .withMessage("Excerpt must be at least 10 characters"),
+    check("page_count")
+      .notEmpty()
+      .withMessage("Page count is required")
+      .isInt({ min: 1 })
+      .withMessage("Page count must be a positive number"),
+    check("publish_date")
+      .notEmpty()
+      .withMessage("Publish date is required")
+      .isISO8601()
+      .withMessage("Publish date must be a valid date"),
+    check("author")
+      .trim()
+      .notEmpty()
+      .withMessage("Author is required")
+      .isLength({ min: 3 })
+      .withMessage("Author name must be at least 3 characters"),
+    check("genre")
+      .trim()
+      .notEmpty()
+      .withMessage("Genres are required"),
+    check("language")
+      .trim()
+      .notEmpty()
+      .withMessage("Languages are required"),
+    check("prize")
+      .notEmpty()
+      .withMessage("Price is required")
+      .isFloat({ min: 1 })
+      .withMessage("Price must be a positive number"),
+    check("category")
+      .trim()
+      .notEmpty()
+      .withMessage("Category is required")
+      .isIn(["Academic", "Fiction", "Non-Fiction", "Comics", "Children", "Poetry"])
+      .withMessage("Invalid category selected"),
+  ],
+  addNewBook
+);
 
 
 
