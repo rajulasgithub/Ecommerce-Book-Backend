@@ -1,3 +1,4 @@
+import { Book } from "../models/book.js";
 import { Order } from "../models/order.js";
 import { User } from "../models/user.js";
 
@@ -166,6 +167,45 @@ export const getUserDetails = async (req, res, next) => {
 
    
 
+  } catch (err) {
+    return next(new HttpError(err.message, 500));
+  }
+};
+
+
+
+
+
+export const getDashboardStats = async (req, res, next) => {
+  try {
+    const { userRole } = req.userData;
+
+    if (userRole !== "admin") {
+      return next(new HttpError("Access Denied: Admin Only", 403));
+    }
+    else{ const customersCount = await User.countDocuments({ role: "customer" });
+
+ 
+    const sellersCount = await User.countDocuments({ role: "seller" });
+
+
+    const booksCount = await Book.countDocuments();
+
+
+    const ordersCount = await Order.countDocuments();
+
+    return res.status(200).json({
+      success: true,
+      message: "Dashboard stats fetched successfully",
+      data: {
+        customersCount,
+        sellersCount,
+        booksCount,
+        ordersCount,
+      },
+    });
+
+    }
   } catch (err) {
     return next(new HttpError(err.message, 500));
   }
