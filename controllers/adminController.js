@@ -8,8 +8,8 @@ export const listUsers = async (req, res, next) => {
     if (userRole !== "admin") {
       return next(new HttpError("Access Denied: Admin Only", 403));
     }
-
-    let { page = 1, limit = 10, search = "", type = "" } = req.query;
+    else{
+         let { page = 1, limit = 10, search = "", type = "" } = req.query;
 
     page = Number(page);
     limit = Number(limit);
@@ -26,7 +26,6 @@ export const listUsers = async (req, res, next) => {
       searchQuery.role = "seller";
     }
 
-  
     if (search) {
       searchQuery.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -59,7 +58,40 @@ export const listUsers = async (req, res, next) => {
       },
     });
 
+    }
+
   } catch (error) {
     return next(new HttpError(error.message, 500));
+  }
+};
+
+
+
+export const deleteUser = async (req, res, next) => {
+  try {
+    const { userRole } = req.userData;
+    const { id } = req.params;
+
+    if (userRole !== "admin") {
+      return next(new HttpError("Access Denied: Admin Only", 403));
+    }
+    else{
+         const user = await User.findById(id);
+
+    if (!user) {
+      return next(new HttpError("User not found", 404));
+    }
+    else{
+         await User.findByIdAndDelete(id);
+
+        return res.status(200).json({
+        success: true,
+        message: `${user.role} deleted successfully`,
+        });
+        
+    }
+    }
+  } catch (err) {
+    return next(new HttpError(err.message, 500));
   }
 };

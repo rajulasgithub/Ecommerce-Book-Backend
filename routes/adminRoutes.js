@@ -1,8 +1,8 @@
 import express from 'express'
-import { listUsers } from '../controllers/adminController.js'
+import { deleteUser, listUsers ,} from '../controllers/adminController.js'
 import userAuthCheck from '../middleware/authCheck.js'
 import { adminCheck } from '../middleware/adminAuth.js'
-import { check } from 'express-validator'
+import { check, param } from 'express-validator'
 
 
 
@@ -29,6 +29,19 @@ adminRoutes.get('/viewallusers',[
             optional().
             trim()               
 ], listUsers )
+
+
+
+adminRoutes.delete(
+  "/deleteuser/:id",
+  [
+    param("id")
+      .isMongoId()
+      .withMessage("Invalid User ID")
+  ],
+  deleteUser
+);
+
   
 
 export default adminRoutes       
