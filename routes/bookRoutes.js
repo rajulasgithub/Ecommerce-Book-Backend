@@ -33,7 +33,7 @@ bookRoutes.get('/viewbooks',[
 
 bookRoutes.post(
   "/addbook",
-  upload.single("image"), // ✅ single file, goes to req.file
+  upload.single("image"), 
   [
     check("title")
       .trim()
@@ -46,13 +46,19 @@ bookRoutes.post(
       .notEmpty()
       .withMessage("Description is required")
       .isLength({ min: 20 })
-      .withMessage("Description must be at least 20 characters"),
+      .withMessage("Description must be at least 20 characters")
+      .isLength({ max: 1000 })
+      .withMessage("Description cannot exceed 1000 characters"),   
+      
     check("excerpt")
       .trim()
       .notEmpty()
       .withMessage("Excerpt is required")
       .isLength({ min: 10 })
-      .withMessage("Excerpt must be at least 10 characters"),
+      .withMessage("Excerpt must be at least 10 characters")
+      .isLength({ max: 1000 })
+      .withMessage("Excerpt cannot exceed 1000 characters"),
+      
     check("page_count")
       .notEmpty()
       .withMessage("Page count is required")
