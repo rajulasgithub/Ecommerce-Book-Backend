@@ -25,7 +25,7 @@ app.use('/api/cart',cartRoutes)
 app.use('/api/user',authRoutes)
 app.use('/api/wishlist',wishlistRoute)
 app.use('/api/orders',orderRoutes)
-app.use('/api/admin',adminRoutes)
+// app.use('/api/admin',adminRoutes)
 
 app.use((error,req, res,next) => {
     res.status(error.code || 500).json({
