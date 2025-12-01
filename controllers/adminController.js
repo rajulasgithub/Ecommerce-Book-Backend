@@ -1,3 +1,4 @@
+import { Order } from "../models/order.js";
 import { User } from "../models/user.js";
 
 
@@ -91,6 +92,80 @@ export const deleteUser = async (req, res, next) => {
         
     }
     }
+  } catch (err) {
+    return next(new HttpError(err.message, 500));
+  }
+};
+
+
+
+export const blockUnblockUser = async (req, res, next) => {
+  try {
+    const { userRole } = req.userData;
+    const { id } = req.params;
+
+    if (userRole !== "admin") {
+      return next(new HttpError("Access Denied: Admin Only", 403));
+    }
+    else{
+      
+    const user = await User.findById(id);
+
+    if (!user) {
+      return next(new HttpError("User not found", 404));
+    }
+    else{
+        user.blocked = !user.blocked;
+       await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `${user.role} has been ${user.blocked ? "blocked" : "unblocked"} successfully`,
+     
+    });
+    }
+
+    }
+  } catch (err) {
+    return next(new HttpError(err.message, 500));
+  }
+};
+
+
+
+export const getUserDetails = async (req, res, next) => {
+  try {
+    const { userRole } = req.userData;
+    const { id } = req.params;
+
+    if (userRole !== "admin") {
+      return next(new HttpError("Access Denied: Admin Only", 403));
+    }
+    else{
+         const user = await User.findById(id, "-password");
+    if (!user) {
+      return next(new HttpError("User not found", 404));
+    }
+    const orders = await Order.find({ user: id })
+      .populate({
+        path: "items.book",
+        select: "title author category price", 
+      })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "User details fetched successfully",
+      data: {
+        user,
+        orders
+      },
+    });
+
+    }
+
+   
+
   } catch (err) {
     return next(new HttpError(err.message, 500));
   }

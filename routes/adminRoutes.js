@@ -1,5 +1,5 @@
 import express from 'express'
-import { deleteUser, listUsers ,} from '../controllers/adminController.js'
+import { blockUnblockUser, deleteUser, getUserDetails, listUsers ,} from '../controllers/adminController.js'
 import userAuthCheck from '../middleware/authCheck.js'
 import { adminCheck } from '../middleware/adminAuth.js'
 import { check, param } from 'express-validator'
@@ -40,6 +40,27 @@ adminRoutes.delete(
       .withMessage("Invalid User ID")
   ],
   deleteUser
+);
+
+
+adminRoutes.patch(
+  "/blockuser/:id",
+  [
+    param("id")
+      .isMongoId()
+      .withMessage("Invalid User ID")
+  ],
+  blockUnblockUser
+);
+
+adminRoutes.get(
+  "/getuserorders/:id",
+  [
+    param("id")
+      .isMongoId()
+      .withMessage("Invalid User ID")
+  ],
+  getUserDetails
 );
 
   
