@@ -61,7 +61,7 @@ authRoutes.post(
     check("role")
       .notEmpty()
       .withMessage("Role is required")
-      .isIn(["customer", "seller"])
+      .isIn(["customer", "seller","admin"])
       .withMessage("Invalid role type"),
   ],
   userRegister
