@@ -210,3 +210,32 @@ export const getDashboardStats = async (req, res, next) => {
     return next(new HttpError(err.message, 500));
   }
 };
+
+
+export const getBooksBySeller = async (req, res, next) => {
+  try {
+    const { userRole } = req.userData; 
+    const { id } = req.params;
+     console.log(req.params)
+    
+    if (userRole !== "admin") {
+      return next(new HttpError("Access Denied: Admin Only", 403));
+    }
+    else{
+      const seller = await User.findById(id);
+    if (!seller || seller.role !== "seller") {
+      return next(new HttpError("Seller not found", 404));
+    }
+    else{
+   const books = await Book.find({ user: id, is_deleted: false }).sort({ createdAt: -1 });
+      console.log(books)
+        return res.status(200).json({
+          success: true,
+          data:books,
+        });
+    }
+    }  
+  } catch (err) {
+    return next(new HttpError(err.message, 500));
+  }
+};

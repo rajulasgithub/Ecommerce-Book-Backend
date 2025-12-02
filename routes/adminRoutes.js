@@ -1,5 +1,5 @@
 import express from 'express'
-import { blockUnblockUser, deleteUser, getDashboardStats, getUserDetails, listUsers ,} from '../controllers/adminController.js'
+import { blockUnblockUser, deleteUser, getBooksBySeller, getDashboardStats, getUserDetails, listUsers ,} from '../controllers/adminController.js'
 import userAuthCheck from '../middleware/authCheck.js'
 import { adminCheck } from '../middleware/adminAuth.js'
 import { check, param } from 'express-validator'
@@ -65,6 +65,8 @@ adminRoutes.get(
 
 
 adminRoutes.get("/dashboardstats", getDashboardStats);
+
+adminRoutes.get("/sellerbooks/:id", getBooksBySeller);
   
 
 export default adminRoutes       

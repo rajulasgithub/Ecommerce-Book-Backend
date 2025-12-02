@@ -242,8 +242,8 @@ export const deleteBook = async (req, res, next) => {
         const {id} = req.params;
          const {userRole} = req.userData
 
-         if(userRole !=="seller"){
-             return next(new HttpError("Only sellers can delete books", 403));
+         if(userRole !=="seller" || userRole !=="admin"){
+             return next(new HttpError("Only sellers and admin can delete books", 403));
          }
          else{       
         if (!mongoose.Types.ObjectId.isValid(id)) {
