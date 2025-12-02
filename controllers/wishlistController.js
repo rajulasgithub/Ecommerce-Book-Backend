@@ -48,19 +48,49 @@ export const addToWishList = async (req, res, next) => {
 
 export const getAllWishList = async (req, res, next) => {
   try {
-
-    const { userId, userRole } = req.userData; 
+    const { userId, userRole } = req.userData;
 
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can list wishlist", 403));
     }
-    else{
-       const wishlist = await Wishlist.findOne({ user: userId }).populate("items.book");
-      if (!wishlist || wishlist.items.length === 0) {
-     return next(new HttpError("Wishlist is Empty", 400));
+
+    // 🔹 Read page & limit from query (e.g. ?page=2&limit=10)
+    let page = parseInt(req.query.page, 10) || 1;
+    let limit = parseInt(req.query.limit, 10) || 10;
+
+    // Safety: prevent invalid values
+    if (page < 1) page = 1;
+    if (limit < 1) limit = 10;
+
+    const wishlist = await Wishlist.findOne({ user: userId }).populate(
+      "items.book"
+    );
+
+    if (!wishlist || !wishlist.items || wishlist.items.length === 0) {
+      return next(new HttpError("Wishlist is Empty", 400));
     }
-    else{
-      const wishlistItems = wishlist.items.map((item) => ({
+
+    const totalItems = wishlist.items.length;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // If page exceeds totalPages, just return empty data but with meta
+    if (page > totalPages) {
+      return res.status(200).json({
+        success: true,
+        message: "Wishlist fetched successfully",
+        data: [],
+        totalItems,
+        totalPages,
+        currentPage: page,
+      });
+    }
+
+    // 🔹 Slice items array for pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedItems = wishlist.items.slice(startIndex, endIndex);
+
+    const wishlistItems = paginatedItems.map((item) => ({
       bookId: item.book._id,
       title: item.book.title,
       description: item.book.description,
@@ -74,17 +104,20 @@ export const getAllWishList = async (req, res, next) => {
       category: item.book.category,
       image: item.book.image,
     }));
+
     return res.status(200).json({
       success: true,
       message: "Wishlist fetched successfully",
       data: wishlistItems,
+      totalItems,
+      totalPages,
+      currentPage: page,
     });
-    }
-    }
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
+
 
 
 

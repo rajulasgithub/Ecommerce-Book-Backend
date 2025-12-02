@@ -1,7 +1,7 @@
 import express from 'express'
 import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook ,getNewlyAddedBooks} from '../controllers/bookController.js'
 import userAuthCheck from '../middleware/authCheck.js'
-import {  check} from 'express-validator'
+import {  check, param} from 'express-validator'
 import upload from '../middleware/fileUpload.js'
 import { adminCheck } from '../middleware/adminAuth.js'
 
@@ -15,7 +15,10 @@ bookRoutes.get('/newlyaddedbook', getNewlyAddedBooks)
 
 bookRoutes.use(userAuthCheck)
 
-bookRoutes.patch('/deletetbook/:id',adminCheck, deleteBook)
+bookRoutes.patch('/deletetbook/:id',adminCheck,[
+          param("id")
+        .isMongoId()
+], deleteBook)
 
 bookRoutes.get('/viewbooks',[
     check("page").

@@ -69,6 +69,8 @@ export const listUsers = async (req, res, next) => {
 
 
 
+
+
 export const deleteUser = async (req, res, next) => {
   try {
     const { userRole } = req.userData;
@@ -97,7 +99,6 @@ export const deleteUser = async (req, res, next) => {
     return next(new HttpError(err.message, 500));
   }
 };
-
 
 
 export const blockUnblockUser = async (req, res, next) => {
@@ -212,6 +213,7 @@ export const getDashboardStats = async (req, res, next) => {
 };
 
 
+
 export const getBooksBySeller = async (req, res, next) => {
   try {
     const { userRole } = req.userData; 
@@ -227,7 +229,7 @@ export const getBooksBySeller = async (req, res, next) => {
       return next(new HttpError("Seller not found", 404));
     }
     else{
-   const books = await Book.find({ user: id, is_deleted: false }).sort({ createdAt: -1 });
+   const books = await Book.find({ user: id, is_deleted: false }).sort({ });
       console.log(books)
         return res.status(200).json({
           success: true,

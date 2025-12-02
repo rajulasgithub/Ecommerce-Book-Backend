@@ -242,15 +242,13 @@ export const deleteBook = async (req, res, next) => {
         const {id} = req.params;
          const {userRole} = req.userData
 
-         if(userRole !=="seller" || userRole !=="admin"){
+         if(userRole !=="seller"  &&  userRole !=="admin"){
              return next(new HttpError("Only sellers and admin can delete books", 403));
          }
          else{       
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return next(new HttpError("Invalid Book ID", 400));
-        }
+       
 
-        else {
+        
             const deleted = await Book.findByIdAndUpdate(
                 id, { is_deleted: true },
                 {runValidators: true }
@@ -265,7 +263,7 @@ export const deleteBook = async (req, res, next) => {
                     message: "Successfully deleted Book",
                 });
             }
-        }
+        
          }
     } catch (error) {
         return next(new HttpError(error.message, 500));
