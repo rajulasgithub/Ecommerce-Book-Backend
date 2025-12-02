@@ -12,61 +12,72 @@ import { validationResult } from "express-validator";
 // user register
 export const userRegister = async (req, res, next) => {
   try {
-    console.log("body is",req.body)
+    console.log("body is", req.body);
     const errors = validationResult(req);
     console.log(errors);
 
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid data inputs passed", 400));
-    }
-    else {
+    } else {
+      const { firstName, lastName, countryCode, phone, email, password, role } =
+        req.body;
 
-      const { firstName, lastName, countryCode, phone, email, password, role } = req.body;
-      
       const fullPhone = `${countryCode}${phone}`;
 
       const existingUser = await User.findOne({
-        $or: [{ email }, { fullPhone }]
+        $or: [{ email }, { fullPhone }],
       });
 
       if (existingUser) {
         if (existingUser.email === email) {
           return next(new HttpError("Email already exists", 400));
-        }
-        else if (existingUser.fullPhone === fullPhone) {
+        } else if (existingUser.fullPhone === fullPhone) {
           return next(new HttpError("Phone number already exists", 400));
         }
-      }
-      else {
+      } else {
         const hashedPassword = await bcrypt.hash(password, 10);
+
         const newUser = new User({
           firstName,
           lastName,
           fullPhone,
           email,
           password: hashedPassword,
-          role
+          role,
         });
 
         await newUser.save();
 
+       
         const token = jwt.sign(
           {
             user_id: newUser._id,
-            role: newUser.role
+            role: newUser.role,
           },
           process.env.JWT_SECRET,
           { expiresIn: process.env.JWT_TOKEN_EXPIRY }
         );
 
+        
+        res.cookie("accessToken", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production", 
+          sameSite: "strict",
+          maxAge: 7 * 24 * 60 * 60 * 1000, 
+        });
+
+     
         return res.status(201).json({
-          success:true,
+          success: true,
           message: "User registered successfully",
           data: {
             email: newUser.email,
-            role: newUser.role
+            role: newUser.role,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            phone: newUser.fullPhone,
           },
-          accessToken: token
+      
         });
       }
     }
@@ -79,54 +90,63 @@ export const userRegister = async (req, res, next) => {
 // user login
 export const userLogin = async (req, res, next) => {
   try {
-    const errors = validationResult(req)
+    const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      console.error("error:",errors)
+      console.error("error:", errors);
       return next(new HttpError("Invalid data inputs passed", 400));
-    } else {
-
-      const { email, password } = req.body;
-
-      const user = await User.findOne({ email }).select("_id name email phone role password");
-
-      if (!user) {
-        return next(new HttpError("User not found", 404));
-      } else {
-
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-          return next(new HttpError("Incorrect password", 400));
-        } else {
-
-          const token = jwt.sign(
-            {
-              user_id: user._id,
-              role: user.role
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_TOKEN_EXPIRY }
-          );
-
-          return res.status(200).json({
-            status: true,
-            message: "Login successful",
-            data: {
-              email: user.email,
-              role: user.role
-            },
-            accessToken: token
-          });
-
-        }
-      }
     }
 
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email }).select(
+      "_id name email phone role password"
+    );
+
+    if (!user) {
+      return next(new HttpError("User not found", 404));
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return next(new HttpError("Incorrect password", 400));
+    }
+
+
+    const token = jwt.sign(
+      {
+        user_id: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_TOKEN_EXPIRY }
+    );
+
+   
+    res.cookie("accessToken", token, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
+    });
+
+
+    return res.status(200).json({
+      status: true,
+      message: "Login successful",
+      data: {
+        email: user.email,
+        role: user.role,
+        name: user.name,
+      }
+      
+    });
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
+
 
 
 

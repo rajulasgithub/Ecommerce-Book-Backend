@@ -8,13 +8,21 @@ import authRoutes from './routes/authRoutes.js'
 import wishlistRoute from './routes/wishlistRoutes.js'
 import orderRoutes from './routes/orderRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
+import cookieParser from "cookie-parser";
 
 const app = express()
 dotenv.config()
 
 app.use(express.json())
 app.use(express.urlencoded({ extended:true}))
-app.use(cors())
+
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: "http://localhost:3000", 
+    credentials: true,              
+  })
+);
 
 app.use('/uploads', express.static('uploads'));
 
