@@ -3,6 +3,7 @@ import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook ,getNewlyA
 import userAuthCheck from '../middleware/authCheck.js'
 import {  check} from 'express-validator'
 import upload from '../middleware/fileUpload.js'
+import { adminCheck } from '../middleware/adminAuth.js'
 
 const bookRoutes = express.Router()
 
@@ -14,7 +15,7 @@ bookRoutes.get('/newlyaddedbook', getNewlyAddedBooks)
 
 bookRoutes.use(userAuthCheck)
 
-bookRoutes.patch('/deletetbook/:id', deleteBook)
+bookRoutes.patch('/deletetbook/:id',adminCheck, deleteBook)
 
 bookRoutes.get('/viewbooks',[
     check("page").
