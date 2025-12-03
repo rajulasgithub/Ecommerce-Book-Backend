@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import HttpError from "../helpers/httpError.js";
 import { validationResult } from "express-validator";
+import sendWelcomeEmail from "../config/mail/sendWelcomeEmail.js";
 // import otpGenerator from 'otp-generator'
 // import { OTP } from "../models/otp.js";
 // import { sendOtpEmail } from "../config/sendOtp.js";
@@ -47,6 +48,14 @@ export const userRegister = async (req, res, next) => {
         });
 
         await newUser.save();
+
+          const welcomeLink = "https://tailwindcss.com/"; 
+            try {
+          await sendWelcomeEmail(newUser.email, newUser.firstName, welcomeLink);
+          console.log("Welcome email sent successfully!");
+        } catch (err) {
+          console.error("Failed to send welcome email:", err);
+        }
 
        
         const token = jwt.sign(
