@@ -57,8 +57,7 @@ export const userRegister = async (req, res, next) => {
           process.env.JWT_SECRET,
           { expiresIn: process.env.JWT_TOKEN_EXPIRY }
         );
-
-        
+    
         res.cookie("accessToken", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", 
@@ -66,7 +65,20 @@ export const userRegister = async (req, res, next) => {
           maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
 
-     
+        res.cookie("role", newUser.role, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.cookie("email", newUser.email, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
         return res.status(201).json({
           success: true,
           message: "User registered successfully",
