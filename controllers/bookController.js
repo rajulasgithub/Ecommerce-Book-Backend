@@ -295,3 +295,26 @@ export const getNewlyAddedBooks = async (req, res, next) => {
 };
 
 
+
+// add reviewand rating
+
+export const addReview = async (req, res) => {
+  const { rating, comment } = req.body;
+  const userId = req.user._id;
+  const { bookId } = req.params;
+
+  const book = await Book.findById(bookId);
+  if (!book) return res.status(404).json({ message: "Book not found" });
+
+
+  const alreadyReviewed = book.reviews.find(r => r.user.toString() === userId.toString());
+  if (alreadyReviewed)
+    return res.status(400).json({ message: "You already reviewed this book" });
+
+  book.reviews.push({ user: userId, rating, comment });
+
+  book.calculateRating(); 
+  await book.save();
+
+  res.json({ message: "Review added", book });
+};

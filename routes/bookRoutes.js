@@ -1,5 +1,5 @@
 import express from 'express'
-import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook ,getNewlyAddedBooks} from '../controllers/bookController.js'
+import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook ,getNewlyAddedBooks, addReview} from '../controllers/bookController.js'
 import userAuthCheck from '../middleware/authCheck.js'
 import {  check, param} from 'express-validator'
 import upload from '../middleware/fileUpload.js'
@@ -169,6 +169,11 @@ bookRoutes.patch('/updatebook/:id',upload.single('image'),[
         withMessage("Invalid category selected")
 
 ], updateBook)
+
+bookRoutes.post('/review/:bookId', addReview)
+
+
+
 
 
 
