@@ -34,7 +34,19 @@ const userSchema = new mongoose.Schema({
   blocked: {
   type: Boolean,
   default: false
-}
+},
+  image: {
+      type: String,      
+      required: false,
+      default: null,    
+    },
+    bio: {
+      type: String,
+      trim: true,
+      required: false,
+      default: "",
+    },
+
 
 },
 { timestamps: true }

@@ -58,26 +58,26 @@ export const userRegister = async (req, res, next) => {
           { expiresIn: process.env.JWT_TOKEN_EXPIRY }
         );
     
-        res.cookie("accessToken", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production", 
-          sameSite: "strict",
-          maxAge: 7 * 24 * 60 * 60 * 1000, 
-        });
+      //   res.cookie("accessToken", token, {
+      //     httpOnly: false,
+      //     secure: process.env.NODE_ENV === "production", 
+      //     sameSite: "strict",
+      //     maxAge: 7 * 24 * 60 * 60 * 1000, 
+      //   });
 
-        res.cookie("role", newUser.role, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      //   res.cookie("role", newUser.role, {
+      //   httpOnly: false,
+      //   secure: process.env.NODE_ENV === "production",
+      //   sameSite: "lax",
+      //   maxAge: 7 * 24 * 60 * 60 * 1000,
+      // });
 
-      res.cookie("email", newUser.email, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      //  res.cookie("email", newUser.email, {
+      //   httpOnly: false,
+      //   secure: process.env.NODE_ENV === "production",
+      //   sameSite: "lax",
+      //   maxAge: 7 * 24 * 60 * 60 * 1000,
+      // });
 
         return res.status(201).json({
           success: true,
@@ -89,6 +89,7 @@ export const userRegister = async (req, res, next) => {
             lastName: newUser.lastName,
             phone: newUser.fullPhone,
           },
+          accessToken : token
       
         });
       }
@@ -112,12 +113,13 @@ export const userLogin = async (req, res, next) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select(
-      "_id name email phone role password"
+      "_id firstName lastName email fullPhone role password"
     );
 
     if (!user) {
       return next(new HttpError("User not found", 404));
     }
+    console.log(user)
 
     const isMatch = await bcrypt.compare(password, user.password);
 
@@ -134,14 +136,27 @@ export const userLogin = async (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_TOKEN_EXPIRY }
     );
+  
+    // res.cookie("accessToken", token, {
+    //   httpOnly: false, 
+    //   secure: process.env.NODE_ENV === "production", 
+    //   sameSite: "strict",
+    //   maxAge: 7 * 24 * 60 * 60 * 1000, 
+    // });
 
-   
-    res.cookie("accessToken", token, {
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, 
-    });
+    //   res.cookie("role", user.role, {
+    //     httpOnly: false,
+    //     secure: process.env.NODE_ENV === "production",
+    //     sameSite: "lax",
+    //     maxAge: 7 * 24 * 60 * 60 * 1000,
+    //   });
+
+    //   res.cookie("email", user.email, {
+    //     httpOnly: false,
+    //     secure: process.env.NODE_ENV === "production",
+    //     sameSite: "lax",
+    //     maxAge: 7 * 24 * 60 * 60 * 1000,
+    //   });
 
 
     return res.status(200).json({
@@ -150,9 +165,12 @@ export const userLogin = async (req, res, next) => {
       data: {
         email: user.email,
         role: user.role,
-        name: user.name,
-      }
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.fullPhone,
+      },
       
+      accessToken:token
     });
   } catch (error) {
     return next(new HttpError(error.message, 500));
@@ -197,6 +215,64 @@ export const resetPasswordDirect = async (req, res, next) => {
 
 
 
+
+export const updateUserProfile = async (req, res, next) => {
+  try {
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        status: false,
+        errors: errors.array(),
+      });
+    }
+    else{
+      const userRole = req.userData.userRole
+      
+      const userId = req.user.id;
+
+    const { firstName, lastName, email, phone, bio } = req.body;
+   
+    const updateFields = {};
+
+    if (firstName) updateFields.firstName = firstName;
+    if (lastName) updateFields.lastName = lastName;
+    if (email) updateFields.email = email;
+    if (phone) updateFields.phone = phone;
+    if (bio) updateFields.bio = bio;
+
+    
+    if (req.file) {
+    
+      updateFields.image = req.file.filename; 
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateFields },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        status: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Profile updated successfully",
+      data: updatedUser,
+    });
+
+    }
+    
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+};
 
 
 

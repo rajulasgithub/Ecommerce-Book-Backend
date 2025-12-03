@@ -1,11 +1,15 @@
 import express from 'express'
 import {userRegister, userLogin } from '../controllers/authController.js'
 import { check } from 'express-validator'
+import userAuthCheck from '../middleware/authCheck.js';
 
 
 const authRoutes = express.Router()
 
-  
+
+
+
+
 authRoutes.post(
   "/register",
   [
@@ -78,6 +82,30 @@ authRoutes.post('/login', [
       notEmpty().
       withMessage("Password is required")
 ], userLogin )
+
+
+authRoutes.use(userAuthCheck)
+
+authRoutes.patch(
+  "/updateprofile",
+  upload.single("avatar"),
+  [
+    check("firstname").optional().isString().withMessage("Invalid lastname"),
+    check("lastname").optional().isString().withMessage("Invalid lastname"),
+    check("email").optional().isEmail().withMessage("Invalid email"),
+    check("phone")
+      .optional()
+      .isLength({ min: 10, max: 10 })
+      .withMessage("Phone must be 10 digits"),
+    check("bio").optional().isString(),
+  ],
+  updateUserProfile
+);
+
+  
+
+
+
 
 
 // authRoutes.post('/send-otp',[ check("email").notEmpty().withMessage("Email is required").isEmail().withMessage("Invalid email format"),], sendOtp )
