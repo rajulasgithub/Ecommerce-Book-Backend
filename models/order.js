@@ -25,7 +25,18 @@ const orderSchema = new mongoose.Schema(
           default: Date.now,
         },
         price: Number,
+          
+        status: {
+          type: String,
+          enum: ["ordered", "cancelled", "shipped", "delivered"],
+          default: "ordered",
+        },
+        cancelledAt: {
+          type: Date,
+          default: null,
+        },
       },
+      
     ],
 
     totalQty: {
@@ -57,17 +68,16 @@ const orderSchema = new mongoose.Schema(
       default: "cod",
     },
 
-    status: {
-      type: String,
-      enum: ["ordered", "cancelled", "delivered"],
-      default: "ordered",
-    },
+    // status: {
+    //   type: String,
+    //   enum: ["ordered", "cancelled", "delivered"],
+    //   default: "ordered",
+    // },
     
     cancelledAt: {
       type: Date,
       default: null,
     },
-
     paymentStatus: {
       type: String,
       enum: ["pending", "paid"],

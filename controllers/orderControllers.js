@@ -6,6 +6,8 @@ import { Order } from "../models/order.js";
 export const orderItems = async (req, res, next) => {
   try {
     const errors = validationResult(req);
+    console.log(errors)
+
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
@@ -55,7 +57,6 @@ export const orderItems = async (req, res, next) => {
 
 
 
-// getallorders
 
 
 export const getUserOrders = async (req, res, next) => {
@@ -105,16 +106,14 @@ export const getSellerOrders = async (req, res, next) => {
       return next(new HttpError("Only sellers can view orders for their books", 403));
     }
 
-    // Fetch all orders and populate the book and its user (seller)
     const orders = await Order.find()
       .populate({
         path: "items.book",
         model: "Book",
-        populate: { path: "user", model: "User" } // book.user is the seller
+        populate: { path: "user", model: "User" } 
       })
       .sort({ createdAt: -1 });
 
-    // Filter orders: keep only items belonging to this seller
     const sellerOrders = orders.filter(order =>
       order.items.some(item =>
         item.book?.user?._id?.toString() === userId
@@ -134,63 +133,77 @@ export const getSellerOrders = async (req, res, next) => {
 
 
 
-export const cancelOrder = async (req, res, next) => {
+export const cancelOrderItem = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
-    const { orderId } = req.params;
+    const { orderId, itemId } = req.params;
 
     // Only customers can cancel
     if (userRole !== "customer") {
-      return next(new HttpError("Only customers can cancel orders", 403));
+      return next(new HttpError("Only customers can cancel items", 403));
     }
-    else{
-      // Validate orderId
-    if (!orderId) {
-      return next(new HttpError("Order ID is required", 400));
+
+    if (!orderId || !itemId) {
+      return next(new HttpError("Order ID & Item ID required", 400));
     }
 
     // Find order
-    const order = await Order.findById(orderId).populate("items.book");
+    const order = await Order.findById(orderId);
 
     if (!order) {
       return next(new HttpError("Order not found", 404));
     }
 
-    // Make sure user owns this order
+    // Ensure user owns this order
     if (order.user.toString() !== userId) {
       return next(new HttpError("You are not allowed to cancel this order", 403));
     }
 
-    // Optional — Prevent cancelling after shipped/delivered
-    if (["shipped", "delivered"].includes(order.status)) {
-      return next(
-        new HttpError("Order cannot be cancelled after it has been shipped", 400)
-      );
+    // Find the specific item
+    const item = order.items.id(itemId);
+    if (!item) {
+      return next(new HttpError("Order item not found", 404));
     }
 
-    // If already cancelled
-    if (order.status === "cancelled") {
-      return next(new HttpError("Order is already cancelled", 400));
+    // Prevent cancelling shipped or delivered items
+    if (["shipped", "delivered"].includes(item.status)) {
+      return next(new HttpError("This item cannot be cancelled now", 400));
     }
 
-    // Cancel it
-    order.status = "cancelled";
-    order.cancelledAt = new Date();
+    // Already cancelled?
+    if (item.status === "cancelled") {
+      return next(new HttpError("This item is already cancelled", 400));
+    }
 
-    const updatedOrder = await order.save();
+    // ❌ Cancel this item
+    item.status = "cancelled";
+    item.cancelledAt = new Date();
+
+    // 🟡 Update order.status based on items
+    const allCancelled = order.items.every(i => i.status === "cancelled");
+    const someCancelled = order.items.some(i => i.status === "cancelled");
+
+    if (allCancelled) {
+      order.status = "cancelled";
+      order.cancelledAt = new Date();
+    } else if (someCancelled) {
+      order.status = "partially_cancelled";
+    } else {
+      order.status = "ordered";
+    }
+
+    await order.save();
 
     return res.status(200).json({
-      message: "Order cancelled successfully",
-      order: updatedOrder,
+      message: "Item cancelled successfully",
+      order,
     });
 
-    }
-
-    
   } catch (error) {
-    return next(new HttpError(error.message || "Unable to cancel order", 500));
+    return next(new HttpError(error.message || "Unable to cancel item", 500));
   }
 };
+
 
 
 

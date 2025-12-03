@@ -227,9 +227,8 @@ export const updateUserProfile = async (req, res, next) => {
       });
     }
     else{
-      const userRole = req.userData.userRole
       
-      const userId = req.user.id;
+      const userId = req.userData.userId
 
     const { firstName, lastName, email, phone, bio } = req.body;
    
@@ -244,7 +243,7 @@ export const updateUserProfile = async (req, res, next) => {
     
     if (req.file) {
     
-      updateFields.image = req.file.filename; 
+      updateFields.image = req.file.path; 
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -275,6 +274,35 @@ export const updateUserProfile = async (req, res, next) => {
 };
 
 
+
+export const getProfile = async (req, res) => {
+  try {
+    const{userId,userRole} = req.userData
+    if(userRole !=="customer" && userRole !=="seller"){
+        return next(new HttpError("only customers and seller can edit their profile", 403));
+    }
+    else{
+      const user = await User.findById(userId).select("-password");
+
+    if (!user) {
+      return next(new HttpError("user not found", 400));
+    }
+    else{
+       return res.status(200).json({
+        status: true,
+        message: "User details fetched successfully",
+        data: user,
+    });
+    }
+    } 
+  } catch (error) {
+    console.error("Get Me Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Something went wrong while fetching user details",
+    });
+  }
+};
 
 
 // sendotp

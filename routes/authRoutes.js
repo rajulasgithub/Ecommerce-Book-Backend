@@ -1,7 +1,8 @@
 import express from 'express'
-import {userRegister, userLogin } from '../controllers/authController.js'
+import {userRegister, userLogin, updateUserProfile, getProfile } from '../controllers/authController.js'
 import { check } from 'express-validator'
 import userAuthCheck from '../middleware/authCheck.js';
+import upload from '../middleware/fileUpload.js';
 
 
 const authRoutes = express.Router()
@@ -88,19 +89,27 @@ authRoutes.use(userAuthCheck)
 
 authRoutes.patch(
   "/updateprofile",
-  upload.single("avatar"),
+  upload.single("image"),
   [
     check("firstname").optional().isString().withMessage("Invalid lastname"),
     check("lastname").optional().isString().withMessage("Invalid lastname"),
     check("email").optional().isEmail().withMessage("Invalid email"),
-    check("phone")
-      .optional()
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Phone must be 10 digits"),
+  check("phone")
+  .optional()
+  .custom((value) => {
+    const cleaned = value.replace(/\s/g, "");
+    const regex = /^\+?[0-9]{10,15}$/;
+    if (!regex.test(cleaned)) {
+      throw new Error("Enter a valid phone number with country code");
+    }
+    return true;
+  }),
     check("bio").optional().isString(),
   ],
   updateUserProfile
 );
+
+authRoutes.get("/profile", getProfile);
 
   
 
