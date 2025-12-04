@@ -298,23 +298,53 @@ export const getNewlyAddedBooks = async (req, res, next) => {
 
 // add reviewand rating
 
-export const addReview = async (req, res) => {
-  const { rating, comment } = req.body;
-  const userId = req.user._id;
-  const { bookId } = req.params;
+export const addReview = async (req, res, next) => {
+  try {
+    const { rating, comment } = req.body;
+    const { userRole, userId } = req.userData;
+    const { bookId } = req.params;
 
-  const book = await Book.findById(bookId);
-  if (!book) return res.status(404).json({ message: "Book not found" });
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can add a review", 404));
+    }
 
+    const book = await Book.findById(bookId);
+    if (!book) {
+      return next(new HttpError("No book found", 404));
+    }
 
-  const alreadyReviewed = book.reviews.find(r => r.user.toString() === userId.toString());
-  if (alreadyReviewed)
-    return res.status(400).json({ message: "You already reviewed this book" });
+    // Check if user already reviewed
+    const existingReview = book.reviews.find(
+      (r) => r.user.toString() === userId.toString()
+    );
 
-  book.reviews.push({ user: userId, rating, comment });
+    if (existingReview) {
+      // User has reviewed before → update ONLY comment
+      if (comment) {
+        existingReview.comment = comment;
+      }
 
-  book.calculateRating(); 
-  await book.save();
+      // Do NOT allow updating rating
+      // If rating is sent again, ignore it
+    } else {
+      // First time review → allow rating + comment
+      book.reviews.push({
+        user: userId,
+        rating,
+        comment,
+      });
+    }
 
-  res.json({ message: "Review added", book });
+    book.calculateRating();
+    await book.save();
+
+    return res.status(200).json({
+      success: true,
+      message: existingReview
+        ? "Your review comment has been updated"
+        : "Review added successfully",
+    });
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
 };

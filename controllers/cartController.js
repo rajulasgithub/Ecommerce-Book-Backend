@@ -5,86 +5,112 @@ import { Cart } from "../models/cart.js";
 // add to cart
 export const addToCart = async (req, res, next) => {
   try {
-    const {id} = req.params;
-    const {userId, userRole}= req.userData
+    const { id } = req.params;
+    const { userId, userRole } = req.userData;
 
-   if(userRole !== "customer"){
-    return next(new HttpError("Only customers  can add books to cart", 403));
-   }
-   else{
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return next(new HttpError("Invalid or missing Book ID", 400));
-  }
-    else {
-
-      let cart = await Cart.findOne({user:userId}) || new Cart({user:userId, items: [] });
-
-      const alreadyExists = cart.items.some(
-        (item) => item.book.toString() === id
-      );
-
-      if (alreadyExists) {
-        return next(new HttpError("Book is already in the cart", 400));
-      } 
-      else {
-        cart.items.push({ book: id });
-        await cart.save();
-
-        return res.status(200).json({
-          success: true,
-          message: "Book added to cart",
-        });
-      }
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can add books to cart", 403));
     }
-   }
- 
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return next(new HttpError("Invalid or missing Book ID", 400));
+    }
+
+    
+    let cart = await Cart.findOne({ user: userId });
+
+    if (!cart) {
+      cart = new Cart({
+        user: userId,
+        items: [],
+      });
+    }
+
+  
+    const existingItem = cart.items.find(
+      (item) => item.book.toString() === id
+    );
+
+    if (existingItem) {
+    
+      existingItem.quantity = (existingItem.quantity || 1) + 1;
+    } else {
+    
+      cart.items.push({
+        book: id,
+        quantity: 1,
+      });
+    }
+
+    await cart.save();
+
+    return res.status(200).json({
+      success: true,
+      message: existingItem
+        ? "Book quantity updated in cart"
+        : "Book added to cart",
+      cart,
+    });
+
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
 };
 
 
+
 // listing all cart items
 export const getCartItems = async (req, res, next) => {
   try {
-    
-    const {userId,userRole} = req.userData
-    
-  if(userRole !=="customer"){
-    return next(new HttpError("Only customers can get cart items ", 403));
-  }
-    else{
-    const cart = await Cart.findOne({user:userId}).populate("items.book");
+    const { userId, userRole } = req.userData;
+
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can get cart items", 403));
+    }
+
+    const { page = 1, limit = 10 } = req.query; // get page & limit from query params
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    const cart = await Cart.findOne({ user: userId }).populate("items.book");
 
     if (!cart || cart.items.length === 0) {
       return next(new HttpError("Cart is empty", 400));
-    } 
-    else {
-      const cartItems = cart.items.map((item) => ({
-        bookId: item.book._id,
-        title: item.book.title,
-        prize: item.book.prize,
-        genre: item.book.genre,
-        image: item.book.image,
-        quantity: item.quantity
-      }));
-
-      if (cartItems) {
-        return res.status(200).json({
-          success: true,
-          message: "Cart items retrieved successfully",
-          data:cartItems
-        });
-      } 
-      else {
-        return next(new HttpError("Cart items not found", 404));
-      }
     }
-} 
+
+    // Pagination logic
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+
+    const paginatedItems = cart.items.slice(startIndex, endIndex).map((item) => ({
+      bookId: item.book._id,
+      title: item.book.title,
+      prize: item.book.prize,
+      genre: item.book.genre,
+      image: item.book.image,
+      quantity: item.quantity,
+    }));
+
+    const totalItems = cart.items.length;
+    const totalPages = Math.ceil(totalItems / limitNum);
+
+    return res.status(200).json({
+      success: true,
+      message: "Cart items retrieved successfully",
+      data: paginatedItems,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: pageNum,
+        limit: limitNum,
+      },
+    });
   } catch (error) {
-     return next(new HttpError(error.message, 500));
+    return next(new HttpError(error.message, 500));
   }
 };
+
+
 
 
 // removeCartItem
