@@ -68,7 +68,7 @@ export const getCartItems = async (req, res, next) => {
       return next(new HttpError("Only customers can get cart items", 403));
     }
 
-    const { page = 1, limit = 10 } = req.query; // get page & limit from query params
+    const { page = 1, limit = 10 } = req.query; 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
 
@@ -78,7 +78,7 @@ export const getCartItems = async (req, res, next) => {
       return next(new HttpError("Cart is empty", 400));
     }
 
-    // Pagination logic
+
     const startIndex = (pageNum - 1) * limitNum;
     const endIndex = startIndex + limitNum;
 
