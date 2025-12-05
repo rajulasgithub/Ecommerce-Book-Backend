@@ -1,6 +1,6 @@
 import express from 'express'
 import userAuthCheck from '../middleware/authCheck.js'
-import { getSellerOrders, getUserOrders, orderItems, getSellerOrderDetails, cancelOrderItem } from '../controllers/orderControllers.js'
+import { getSellerOrders, getUserOrders, orderItems, getSellerOrderDetails, cancelOrderItem, getSavedAddress, updateAddress } from '../controllers/orderControllers.js'
 import { check } from 'express-validator'
 
 const orderRoutes = express.Router()
@@ -42,6 +42,8 @@ orderRoutes.get('/getallorder', getUserOrders);
 orderRoutes.get('/sellerorder', getSellerOrders);
 orderRoutes.patch('/cancelorder/:orderId/:itemId', cancelOrderItem);
 orderRoutes.get('/sellerorderdetail/:orderId', getSellerOrderDetails);
+orderRoutes.get("/address",getSavedAddress);
+orderRoutes.patch("/updateaddress",updateAddress);
 
 
 export default orderRoutes

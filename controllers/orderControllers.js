@@ -38,7 +38,7 @@ export const orderItems = async (req, res, next) => {
         orderedAt: new Date(),
         price: item.price 
       })),
-      address,
+      address: [address],
       totalQty,       
       totalAmount,     
     });
@@ -259,5 +259,99 @@ export const getSellerOrderDetails = async (req, res, next) => {
     return next(
       new HttpError(error.message || "Unable to fetch order details", 500)
     );
+  }
+};
+
+
+
+
+
+
+export const getSavedAddress = async (req, res, next) => {
+  try {
+    const { userId, userRole } = req.userData;
+
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can view addresses", 403));
+    }
+
+    // Fetch the latest order
+    const latestOrder = await Order.findOne({ user: userId })
+      .sort({ createdAt: -1 })
+      .select("address");
+
+    if (!latestOrder || !latestOrder.address || latestOrder.address.length === 0) {
+      return next(new HttpError("No addresses found", 404));
+    }
+
+    // Return addresses in descending order (latest first)
+    const addresses = latestOrder.address
+      .map(addr => ({ ...addr.toObject() })) // convert Mongoose subdocs to plain objects
+      .sort((a, b) => new Date(b._id.getTimestamp()).getTime() - new Date(a._id.getTimestamp()).getTime());
+
+    return res.status(200).json({
+      success: true,
+      message: "Addresses fetched successfully",
+      addresses, // array of addresses
+    });
+
+  } catch (err) {
+    console.error(err);
+    return next(new HttpError(err.message || "Failed to fetch addresses", 500));
+  }
+};
+
+
+// upadateaddress
+
+
+export const updateAddress = async (req, res, next) => {
+  try {
+    const { userId, userRole } = req.userData;
+    const { addressId, updatedAddress } = req.body;
+
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can update address", 403));
+    }
+
+    if (!updatedAddress) {
+      return next(new HttpError("Address data is required", 400));
+    }
+
+    const order = await Order.findOne({ user: userId });
+
+    if (!order) {
+      return next(new HttpError("Order not found for this user", 404));
+    }
+
+    // UPDATE existing address
+    if (addressId) {
+      const addressIndex = order.address.findIndex(a => a._id.toString() === addressId);
+      if (addressIndex === -1) {
+        return next(new HttpError("Address not found", 404));
+      }
+      order.address[addressIndex] = {
+        ...order.address[addressIndex].toObject(),
+        ...updatedAddress,
+      };
+      await order.save();
+      return res.status(200).json({
+        success: true,
+        message: "Address updated successfully",
+        addresses: order.address, // return full array
+      });
+    }
+
+    // ADD new address
+    order.address.push(updatedAddress);
+    await order.save();
+    return res.status(201).json({
+      success: true,
+      message: "Address added successfully",
+      addresses: order.address, // return full array
+    });
+  } catch (err) {
+    console.error(err);
+    return next(new HttpError(err.message || "Failed to update/add address", 500));
   }
 };
