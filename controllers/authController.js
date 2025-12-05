@@ -4,6 +4,8 @@ import bcrypt from 'bcrypt'
 import HttpError from "../helpers/httpError.js";
 import { validationResult } from "express-validator";
 import sendWelcomeEmail from "../config/mail/sendWelcomeEmail.js";
+import { Order } from "../models/order.js";
+import { Book } from "../models/book.js";
 // import otpGenerator from 'otp-generator'
 // import { OTP } from "../models/otp.js";
 // import { sendOtpEmail } from "../config/sendOtp.js";
@@ -462,3 +464,54 @@ export const getProfile = async (req, res) => {
 //   }
 // };
 
+
+
+export const getSellerStats = async (req, res, next) => {
+  try {
+    const {userId} = req.userData; 
+
+    // 1️⃣ Get all books uploaded by this seller
+    const sellerBooks = await Book.find({ user: userId }, { _id: 1 });
+    const sellerBookIds = sellerBooks.map((b) => b._id);
+
+    // 2️⃣ Count total books
+    const totalBooks = sellerBookIds.length;
+
+    // 3️⃣ Find all orders that include ANY of the seller’s books
+    const orders = await Order.find({
+      "items.book": { $in: sellerBookIds },
+      paymentStatus: "paid",
+    }).lean();
+
+    // Total number of orders involving seller books
+    const totalOrders = orders.length;
+
+    // 4️⃣ Calculate revenue
+    let totalRevenue = 0;
+
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
+        if (
+          sellerBookIds.some(
+            (id) => String(id) === String(item.book)
+          ) &&
+          item.status !== "cancelled"
+        ) {
+          totalRevenue += item.price * item.quantity;
+        }
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalBooks,
+        totalOrders,
+        totalRevenue,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return next(new HttpError("Failed to fetch seller stats", 500));
+  }
+};

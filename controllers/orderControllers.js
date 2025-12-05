@@ -1,60 +1,61 @@
 import { validationResult } from "express-validator";
 import HttpError from "../helpers/httpError.js";
 import { Order } from "../models/order.js";
+import { Address } from "../models/address.js";
 
 
 export const orderItems = async (req, res, next) => {
   try {
     const errors = validationResult(req);
-    console.log(errors)
-
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
-    else{
-      const { userId, userRole } = req.userData;
+
+    const { userId, userRole } = req.userData;
+
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can place orders", 403));
-    }else{
-      const { items, address } = req.body;
+    }
 
-   
-    const totalQty = items.reduce(
-      (sum, item) => sum + (item.quantity || 1),
-      0
-    );
+    const { items, address } = req.body;
 
-    const totalAmount = items.reduce(
-      (sum, item) => sum + (item.price * (item.quantity || 1)),
-      0
-    );
+    // --- Calculate totals ---
+    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    const totalAmount = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
 
-    
+    // --- Save order ---
     const newOrder = new Order({
       user: userId,
       items: items.map((item) => ({
-        book: item.book,   
-        quantity: item.quantity ,
+        book: item.book,
+        quantity: item.quantity,
         orderedAt: new Date(),
-        price: item.price 
+        price: item.price,
       })),
-      address: [address],
-      totalQty,       
-      totalAmount,     
+      address: address,
+      totalQty,
+      totalAmount,
     });
 
     await newOrder.save();
 
+   
+  
+      const newAddress = new Address({
+        user: userId,
+        addresses:address
+      })
+
+      await newAddress.save();
+  
     res.status(201).json({
-      success:true,
+      success: true,
       message: "Order placed successfully",
-    }); }
-    }
+    });
   } catch (error) {
     return next(new HttpError(error.message || "Order failed", 500));
   }
 };
-
 
 
 
@@ -106,30 +107,63 @@ export const getSellerOrders = async (req, res, next) => {
       return next(new HttpError("Only sellers can view orders for their books", 403));
     }
 
+    // Populate items.book -> populate book.user (seller) AND populate order.user (customer)
+    // Use .lean() to get plain objects for easier filtering and to improve performance
     const orders = await Order.find()
       .populate({
         path: "items.book",
         model: "Book",
-        populate: { path: "user", model: "User" } 
+        // populate the book.owner/user (the seller) and select only a few fields
+        populate: {
+          path: "user",
+          model: "User",
+          select: "firstName lastName email phone _id",
+        },
       })
-      .sort({ createdAt: -1 });
+      .populate({
+        path: "user", // the customer who placed the order
+        model: "User",
+        select: "firstName lastName email phone _id",
+      })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const sellerOrders = orders.filter(order =>
-      order.items.some(item =>
-        item.book?.user?._id?.toString() === userId
-      )
-    );
+    // Keep only orders that contain at least one item belonging to this seller
+    // and optionally reduce each order.items to only the seller's items
+    const sellerOrders = orders
+      .map((order) => {
+        // items that belong to this seller (book.user._id matches)
+        const sellerItems = (order.items || []).filter((item) => {
+          // defensive checks in case the controller didn't populate `book` or `book.user`
+          const book = item?.book;
+          const bookUserId = book?.user?._id ?? book?.user ?? null;
+          if (!bookUserId) {
+            // if we cannot determine the book owner, exclude the item to be safe
+            return false;
+          }
+          return String(bookUserId) === String(userId);
+        });
+
+        // if no seller items, drop the order
+        if (!sellerItems.length) return null;
+
+        // Return a trimmed order object where items only contains the seller's items
+        return {
+          ...order,
+          items: sellerItems,
+        };
+      })
+      .filter(Boolean); // remove nulls
 
     return res.status(200).json({
       message: "Seller orders fetched successfully",
       orders: sellerOrders,
     });
-
   } catch (error) {
+    console.error("getSellerOrders error:", error);
     return next(new HttpError(error.message || "Unable to fetch seller orders", 500));
   }
 };
-
 
 
 
@@ -275,24 +309,17 @@ export const getSavedAddress = async (req, res, next) => {
       return next(new HttpError("Only customers can view addresses", 403));
     }
 
-    // Fetch the latest order
-    const latestOrder = await Order.findOne({ user: userId })
-      .sort({ createdAt: -1 })
-      .select("address");
+    // Fetch all addresses for the user, sorted by latest first
+    const addresses = await Address.find({ user: userId }).sort({ createdAt: -1 });
 
-    if (!latestOrder || !latestOrder.address || latestOrder.address.length === 0) {
+    if (!addresses || addresses.length === 0) {
       return next(new HttpError("No addresses found", 404));
     }
-
-    // Return addresses in descending order (latest first)
-    const addresses = latestOrder.address
-      .map(addr => ({ ...addr.toObject() })) // convert Mongoose subdocs to plain objects
-      .sort((a, b) => new Date(b._id.getTimestamp()).getTime() - new Date(a._id.getTimestamp()).getTime());
 
     return res.status(200).json({
       success: true,
       message: "Addresses fetched successfully",
-      addresses, // array of addresses
+      addresses, 
     });
 
   } catch (err) {
@@ -313,45 +340,218 @@ export const updateAddress = async (req, res, next) => {
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can update address", 403));
     }
-
-    if (!updatedAddress) {
-      return next(new HttpError("Address data is required", 400));
+    if (!addressId) {
+      return next(new HttpError("Address ID is required for updating", 400));
+    }
+    if (!updatedAddress || typeof updatedAddress !== "object" || Object.keys(updatedAddress).length === 0) {
+      return next(new HttpError("Updated address data is required", 400));
     }
 
-    const order = await Order.findOne({ user: userId });
+    // 1) Find (or create) the Address doc for this user
+    let userAddresses = await Address.findOne({ user: userId });
 
-    if (!order) {
-      return next(new HttpError("Order not found for this user", 404));
+    // If there's no address doc for this user, optionally create it.
+    // (We create so frontend can update newly created address id flow; but you may choose to return 404 instead.)
+    if (!userAddresses) {
+      userAddresses = new Address({ user: userId, addresses: [] });
     }
 
-    // UPDATE existing address
-    if (addressId) {
-      const addressIndex = order.address.findIndex(a => a._id.toString() === addressId);
-      if (addressIndex === -1) {
-        return next(new HttpError("Address not found", 404));
+    // 2) Find the address subdocument by _id in addresses[]
+    const addrIndex = userAddresses.addresses.findIndex(a => a._id && a._id.toString() === addressId.toString());
+    if (addrIndex === -1) {
+      return next(new HttpError("Address not found for this user", 404));
+    }
+
+    // Merge only allowed fields (avoid writing unexpected keys)
+    const allowedFields = ["fullName", "phone", "addressLine1", "addressLine2", "city", "state", "pinCode"];
+    for (const key of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(updatedAddress, key)) {
+        userAddresses.addresses[addrIndex][key] = updatedAddress[key];
       }
-      order.address[addressIndex] = {
-        ...order.address[addressIndex].toObject(),
-        ...updatedAddress,
-      };
-      await order.save();
-      return res.status(200).json({
-        success: true,
-        message: "Address updated successfully",
-        addresses: order.address, // return full array
+    }
+
+    // markModified not needed for direct subdoc mutation, but safe:
+    userAddresses.markModified(`addresses.${addrIndex}`);
+    await userAddresses.save();
+
+    // 3) Also update Order documents that have an embedded address subdoc with the same _id
+    // (This keeps order snapshots consistent.)
+    const ordersWithAddress = await Order.find({ "address._id": addressId });
+
+    if (Array.isArray(ordersWithAddress) && ordersWithAddress.length > 0) {
+      for (const order of ordersWithAddress) {
+        const idx = order.address.findIndex(a => a._id && a._id.toString() === addressId.toString());
+        if (idx !== -1) {
+          // update permitted fields on the order snapshot too
+          for (const key of allowedFields) {
+            if (Object.prototype.hasOwnProperty.call(updatedAddress, key)) {
+              order.address[idx][key] = updatedAddress[key];
+            }
+          }
+          order.markModified(`address.${idx}`);
+          await order.save();
+        }
+      }
+    }
+
+    // 4) Return the updated addresses array from the Address collection
+    const refreshed = await Address.findOne({ user: userId }).select("addresses -_id");
+    return res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      addresses: refreshed ? refreshed.addresses : [],
+    });
+  } catch (err) {
+    console.error("updateAddress error:", err);
+    if (err.name === "ValidationError") {
+      return next(new HttpError(err.message || "Validation failed", 400));
+    }
+    return next(new HttpError(err.message || "Failed to update address", 500));
+  }
+};
+
+
+ // POST /api/orders/address
+export const addAddress = async (req, res, next) => {
+  try {
+    const { userId, userRole } = req.userData;
+
+    // Accept several possible shapes for compatibility
+    const updatedAddress =
+      req.body.updatedAddress ?? req.body.newAddress ?? req.body;
+
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can add address", 403));
+    }
+
+    if (!updatedAddress || typeof updatedAddress !== "object" || Object.keys(updatedAddress).length === 0) {
+      return next(new HttpError("Address data is required (received empty payload)", 400));
+    }
+
+    // Basic required fields validation (server-side)
+    const { fullName, phone, addressLine1, addressLine2, city, state, pinCode } = updatedAddress;
+    if (!fullName || !phone || !addressLine1) {
+      return next(new HttpError("fullName, phone and addressLine1 are required", 400));
+    }
+
+    // --- 1) Save to Address collection (per-user document with addresses array) ---
+    // Try to find existing Address document for this user
+    let addressDoc = await Address.findOne({ user: userId });
+
+    // If not found, create it
+    if (!addressDoc) {
+      addressDoc = new Address({
+        user: userId,
+        addresses: [], // initialize as empty array
       });
     }
 
-    // ADD new address
-    order.address.push(updatedAddress);
-    await order.save();
+    // Optional: enforce max 3 addresses per user
+    const maxAddresses = 3;
+    if (Array.isArray(addressDoc.addresses) && addressDoc.addresses.length >= maxAddresses) {
+      return next(new HttpError(`You can save up to ${maxAddresses} addresses only`, 400));
+    }
+
+    // Push the new address into the addresses array
+    addressDoc.addresses.push({
+      fullName,
+      phone,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      pinCode,
+    });
+
+    // Save Address doc
+    await addressDoc.save();
+
+    // Grab the newly added address (it's the last element)
+    const addedAddress = addressDoc.addresses[addressDoc.addresses.length - 1];
+
+    // --- 2) (Optional) also save to latest Order.address array for snapshot parity ---
+    // If you want the Order collection to keep a snapshot (so older orders still have addresses),
+    // push to the latest order's address array as you did before. If you DON'T want this, you can skip.
+    try {
+      const latestOrder = await Order.findOne({ user: userId }).sort({ createdAt: -1 });
+      if (latestOrder) {
+        // push the same address snapshot into the order.address array
+        latestOrder.address.push({
+          fullName,
+          phone,
+          addressLine1,
+          addressLine2,
+          city,
+          state,
+          pinCode,
+        });
+        await latestOrder.save();
+      }
+    } catch (orderErr) {
+      // don't block the main response if updating order snapshot fails; log instead
+      console.error("Warning: failed to also push address into Order.address snapshot:", orderErr);
+    }
+
+    // Respond with the addresses array from Address collection (clean shape)
     return res.status(201).json({
       success: true,
       message: "Address added successfully",
-      addresses: order.address, // return full array
+      addresses: addressDoc.addresses, // array of address subdocuments
+      addedAddress,
     });
   } catch (err) {
-    console.error(err);
-    return next(new HttpError(err.message || "Failed to update/add address", 500));
+    console.error("addAddress error:", err);
+    if (err.name === "ValidationError") {
+      return next(new HttpError(err.message || "Validation failed", 400));
+    }
+    return next(new HttpError(err.message || "Failed to add address", 500));
+  }
+};
+
+
+
+
+// deleteaddress
+
+export const deleteAddress = async (req, res, next) => {
+  const { id } = req.params;
+  console.log(id)
+  const { userId, userRole } = req.userData;
+
+  if (userRole !== "customer") {
+    return next(new HttpError("Only customers can delete addresses", 403));
+  }
+
+  if (!id) {
+    return next(new HttpError("Address ID is required", 400));
+  }
+
+  try {
+    // Find the address document for this user
+    const userAddressDoc = await Address.findOne({ user: userId });
+    if (!userAddressDoc) {
+      return next(new HttpError("Address document not found for this user", 404));
+    }
+
+    // Filter out the address to delete
+    const initialLength = userAddressDoc.addresses.length;
+    userAddressDoc.addresses = userAddressDoc.addresses.filter(
+      (addr) => addr._id.toString() !== id
+    );
+
+    if (userAddressDoc.addresses.length === initialLength) {
+      return next(new HttpError("Address not found", 404));
+    }
+
+    await userAddressDoc.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address deleted successfully",
+      addresses: userAddressDoc.addresses, // optional: return updated addresses
+    });
+  } catch (err) {
+    console.error("Delete address error:", err);
+    next(new HttpError(err.message || "Failed to delete address", 500));
   }
 };

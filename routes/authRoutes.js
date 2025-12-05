@@ -1,5 +1,5 @@
 import express from 'express'
-import {userRegister, userLogin, updateUserProfile, getProfile } from '../controllers/authController.js'
+import {userRegister, userLogin, updateUserProfile,getSellerStats, getProfile } from '../controllers/authController.js'
 import { check } from 'express-validator'
 import userAuthCheck from '../middleware/authCheck.js';
 import upload from '../middleware/fileUpload.js';
@@ -110,6 +110,8 @@ authRoutes.patch(
 );
 
 authRoutes.get("/profile", getProfile);
+authRoutes.get("/getsellerstats",getSellerStats);
+
 
   
 

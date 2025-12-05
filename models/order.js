@@ -49,7 +49,7 @@ const orderSchema = new mongoose.Schema(
       default: 0,
     },
 
-   address: [
+   address: 
   {
     fullName: { type: String, required: true },
     phone: { type: String, required: true },
@@ -59,7 +59,7 @@ const orderSchema = new mongoose.Schema(
     state: { type: String, required: true },
     pinCode: { type: String, required: true },
   }
-],
+,
 
     paymentMethod: {
       type: String,
