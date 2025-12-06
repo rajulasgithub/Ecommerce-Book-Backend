@@ -68,28 +68,7 @@ export const userRegister = async (req, res, next) => {
           process.env.JWT_SECRET,
           { expiresIn: process.env.JWT_TOKEN_EXPIRY }
         );
-    
-      //   res.cookie("accessToken", token, {
-      //     httpOnly: false,
-      //     secure: process.env.NODE_ENV === "production", 
-      //     sameSite: "strict",
-      //     maxAge: 7 * 24 * 60 * 60 * 1000, 
-      //   });
-
-      //   res.cookie("role", newUser.role, {
-      //   httpOnly: false,
-      //   secure: process.env.NODE_ENV === "production",
-      //   sameSite: "lax",
-      //   maxAge: 7 * 24 * 60 * 60 * 1000,
-      // });
-
-      //  res.cookie("email", newUser.email, {
-      //   httpOnly: false,
-      //   secure: process.env.NODE_ENV === "production",
-      //   sameSite: "lax",
-      //   maxAge: 7 * 24 * 60 * 60 * 1000,
-      // });
-
+  
         return res.status(201).json({
           success: true,
           message: "User registered successfully",
@@ -124,20 +103,23 @@ export const userLogin = async (req, res, next) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select(
-      "_id firstName lastName email fullPhone role password"
+      "_id firstName lastName email fullPhone role password blocked"
     );
 
     if (!user) {
       return next(new HttpError("User not found", 404));
     }
-    console.log(user)
+
+    // Check if user is blocked
+    if (user.blocked) {
+      return next(new HttpError("Your account has been blocked. Please contact support.", 403));
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return next(new HttpError("Incorrect password", 400));
     }
-
 
     const token = jwt.sign(
       {
@@ -147,28 +129,6 @@ export const userLogin = async (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_TOKEN_EXPIRY }
     );
-  
-    // res.cookie("accessToken", token, {
-    //   httpOnly: false, 
-    //   secure: process.env.NODE_ENV === "production", 
-    //   sameSite: "strict",
-    //   maxAge: 7 * 24 * 60 * 60 * 1000, 
-    // });
-
-    //   res.cookie("role", user.role, {
-    //     httpOnly: false,
-    //     secure: process.env.NODE_ENV === "production",
-    //     sameSite: "lax",
-    //     maxAge: 7 * 24 * 60 * 60 * 1000,
-    //   });
-
-    //   res.cookie("email", user.email, {
-    //     httpOnly: false,
-    //     secure: process.env.NODE_ENV === "production",
-    //     sameSite: "lax",
-    //     maxAge: 7 * 24 * 60 * 60 * 1000,
-    //   });
-
 
     return res.status(200).json({
       status: true,
@@ -180,8 +140,7 @@ export const userLogin = async (req, res, next) => {
         lastName: user.lastName,
         phone: user.fullPhone,
       },
-      
-      accessToken:token
+      accessToken: token,
     });
   } catch (error) {
     return next(new HttpError(error.message, 500));

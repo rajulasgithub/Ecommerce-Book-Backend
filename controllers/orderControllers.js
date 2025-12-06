@@ -167,77 +167,111 @@ export const getSellerOrders = async (req, res, next) => {
 
 
 
-export const cancelOrderItem = async (req, res, next) => {
+export const updateOrderItemStatus = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
     const { orderId, itemId } = req.params;
-
-    // Only customers can cancel
-    if (userRole !== "customer") {
-      return next(new HttpError("Only customers can cancel items", 403));
+    const { action } = req.body; 
+    console.log(orderId)
+    console.log(itemId)
+    console.log(req.params)
+    console.log(req.body)
+    if (!orderId || !itemId || !action) {
+      return next(new HttpError("Order ID, Item ID and new status are required", 400));
     }
 
-    if (!orderId || !itemId) {
-      return next(new HttpError("Order ID & Item ID required", 400));
+    // Fetch order
+    const order = await Order.findById(orderId).populate("items.book");
+
+    if (!order) return next(new HttpError("Order not found", 404));
+
+    // --- ROLE VALIDATION ---
+
+    if (userRole === "customer") {
+      // Customer must own the order
+      if (order.user.toString() !== userId) {
+        return next(new HttpError("You are not allowed to modify this order", 403));
+      }
+
+      // Customers can only cancel
+      if (action !== "cancelled") {
+        return next(new HttpError("Customers can only cancel items", 403));
+      }
     }
 
-    // Find order
-    const order = await Order.findById(orderId);
+    if (userRole === "seller") {
+      // Ensure this item belongs to this seller
+      const itemCheck = order.items.id(itemId);
+      if (itemCheck?.book?.user.toString() !== userId) {
+        return next(new HttpError("This item does not belong to you", 403));
+      }
 
-    if (!order) {
-      return next(new HttpError("Order not found", 404));
+      // Sellers cannot mark "cancelled" after dispatch/deliver
+      if (action === "cancelled") {
+        if (["dispatched", "delivered"].includes(itemCheck.action)) {
+          return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
+        }
+      }
     }
 
-    // Ensure user owns this order
-    if (order.user.toString() !== userId) {
-      return next(new HttpError("You are not allowed to cancel this order", 403));
-    }
-
-    // Find the specific item
+    // Find specific item
     const item = order.items.id(itemId);
-    if (!item) {
-      return next(new HttpError("Order item not found", 404));
+    if (!item) return next(new HttpError("Order item not found", 404));
+
+    // --- BLOCK invalid transitions ---
+    if (item.action === "delivered") {
+      return next(new HttpError("Delivered item status cannot be changed", 400));
     }
 
-    // Prevent cancelling shipped or delivered items
-    if (["shipped", "delivered"].includes(item.status)) {
-      return next(new HttpError("This item cannot be cancelled now", 400));
-    }
-
-    // Already cancelled?
-    if (item.status === "cancelled") {
+    if (item.action === "cancelled") {
       return next(new HttpError("This item is already cancelled", 400));
     }
 
-    // ❌ Cancel this item
-    item.status = "cancelled";
-    item.cancelledAt = new Date();
+    // --- APPLY STATUS CHANGE ---
+    item.status = action;
 
-    // 🟡 Update order.status based on items
-    const allCancelled = order.items.every(i => i.status === "cancelled");
-    const someCancelled = order.items.some(i => i.status === "cancelled");
+    if (action === "cancelled") item.cancelledAt = new Date();
+    if (action === "dispatched") item.dispatchedAt = new Date();
+    if (action === "delivered") item.deliveredAt = new Date();
 
-    if (allCancelled) {
+    // --- UPDATE ORDER-LEVEL STATUS ---
+    const statuses = order.items.map(i => i.action);
+
+    if (statuses.every(s => s === "cancelled")) {
       order.status = "cancelled";
-      order.cancelledAt = new Date();
-    } else if (someCancelled) {
+    }
+    else if (statuses.every(s => s === "delivered")) {
+      order.status = "delivered";
+    }
+    else if (statuses.every(s => s === "dispatched" || s === "delivered")) {
+      order.status = "dispatched";
+    }
+    else if (statuses.some(s => s === "cancelled")) {
       order.status = "partially_cancelled";
-    } else {
+    }
+    else if (statuses.some(s => s === "dispatched")) {
+      order.status = "partially_dispatched";
+    }
+    else if (statuses.some(s => s === "delivered")) {
+      order.status = "partially_delivered";
+    }
+    else {
       order.status = "ordered";
     }
 
     await order.save();
 
     return res.status(200).json({
-      message: "Item cancelled successfully",
+      message: "Order item status updated successfully",
       order,
     });
 
   } catch (error) {
-    return next(new HttpError(error.message || "Unable to cancel item", 500));
+    return next(
+      new HttpError(error.message || "Unable to update item status", 500)
+    );
   }
 };
-
 
 
 
@@ -255,18 +289,20 @@ export const getSellerOrderDetails = async (req, res, next) => {
       return next(new HttpError("Order ID is required", 400));
     }
 
-    // Fetch the order and populate books + book seller
-    const order = await Order.findById(orderId).populate({
-      path: "items.book",
-      model: "Book",
-      populate: { path: "user", model: "User" }, // seller info
-    });
+    // Fetch order + populate customer + populate seller of each book
+    const order = await Order.findById(orderId)
+      .populate({
+        path: "items.book",
+        model: "Book",
+        populate: { path: "user", model: "User" }, // Seller info
+      })
+      .populate("user", "firstName lastName email fullPhone"); // ⭐ Customer info
 
     if (!order) {
       return next(new HttpError("Order not found", 404));
     }
 
-    // Filter items belonging to this seller
+    // Filter seller's items
     const sellerItems = order.items.filter(
       (item) => item.book?.user?._id?.toString() === userId
     );
@@ -281,12 +317,20 @@ export const getSellerOrderDetails = async (req, res, next) => {
       message: "Order details fetched successfully",
       order: {
         _id: order._id,
-        customer: order.user,
+
+        // 🟢 Proper customer details
+        customer: {
+          name: `${order.user.firstName} ${order.user.lastName}`,
+          email: order.user.email,
+          phone: order.user.fullPhone,
+        },
+
         address: order.address,
         paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
         status: order.status,
         createdAt: order.createdAt,
-        items: sellerItems, // only items belonging to seller
+        items: sellerItems,
       },
     });
   } catch (error) {
