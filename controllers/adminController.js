@@ -1,3 +1,5 @@
+import sendBlockStatusEmail from "../config/mail/sendBlockStatusEmail.js";
+import sendDeleteUserEmail from "../config/mail/sendDeleteUserEmail.js";
 import { Book } from "../models/book.js";
 import { Order } from "../models/order.js";
 import { User } from "../models/user.js";
@@ -79,22 +81,26 @@ export const deleteUser = async (req, res, next) => {
     if (userRole !== "admin") {
       return next(new HttpError("Access Denied: Admin Only", 403));
     }
-    else{
-         const user = await User.findById(id);
+
+    const user = await User.findById(id);
 
     if (!user) {
       return next(new HttpError("User not found", 404));
     }
-    else{
-         await User.findByIdAndDelete(id);
 
-        return res.status(200).json({
-        success: true,
-        message: `${user.role} deleted successfully`,
-        });
-        
+    try {
+      await sendDeleteUserEmail(user.email, user.firstName);
+    } catch (err) {
+      console.error("Failed to send delete email:", err);
     }
-    }
+
+    await User.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: `${user.role} deleted successfully`,
+    });
+
   } catch (err) {
     return next(new HttpError(err.message, 500));
   }
@@ -109,25 +115,32 @@ export const blockUnblockUser = async (req, res, next) => {
     if (userRole !== "admin") {
       return next(new HttpError("Access Denied: Admin Only", 403));
     }
-    else{
-      
+
     const user = await User.findById(id);
 
     if (!user) {
       return next(new HttpError("User not found", 404));
     }
-    else{
-        user.blocked = !user.blocked;
-       await user.save();
+
+    // Toggle status
+    user.blocked = !user.blocked;
+    await user.save();
+
+    // Send email notification
+    try {
+      await sendBlockStatusEmail(user.email, user.firstName, user.blocked);
+      console.log("Block/Unblock email sent successfully!");
+    } catch (err) {
+      console.error("Failed to send block/unblock email:", err);
+    }
 
     return res.status(200).json({
       success: true,
-      message: `${user.role} has been ${user.blocked ? "blocked" : "unblocked"} successfully`,
-     
+      message: `${user.role} has been ${
+        user.blocked ? "blocked" : "unblocked"
+      } successfully`,
     });
-    }
 
-    }
   } catch (err) {
     return next(new HttpError(err.message, 500));
   }
