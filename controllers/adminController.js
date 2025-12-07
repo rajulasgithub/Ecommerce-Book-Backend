@@ -12,37 +12,37 @@ export const listUsers = async (req, res, next) => {
     if (userRole !== "admin") {
       return next(new HttpError("Access Denied: Admin Only", 403));
     }
-    else{
-         let { page = 1, limit = 10, search = "", type = "" } = req.query;
+
+    let { page = 1, limit = 10, search = "", type = "" } = req.query;
 
     page = Number(page);
     limit = Number(limit);
 
-
+    // Base query
     let searchQuery = {
-      role: { $in: ["customer", "seller"] }
+      role: { $in: ["customer", "seller"] },
     };
 
-  
+    // Filter by type
     if (type === "customer") {
       searchQuery.role = "customer";
     } else if (type === "seller") {
       searchQuery.role = "seller";
     }
 
+    // Add search filter if search string exists
     if (search) {
       searchQuery.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { firstName: { $regex: search, $options: "i" } }, // Search by firstName
+        { lastName: { $regex: search, $options: "i" } },  // Search by lastName
+        { email: { $regex: search, $options: "i" } },     // Search by email
       ];
     }
 
     const total = await User.countDocuments(searchQuery);
     const totalPages = Math.ceil(total / limit);
 
-    const currentPage =
-      page > totalPages && totalPages > 0 ? totalPages : page;
-
+    const currentPage = page > totalPages && totalPages > 0 ? totalPages : page;
     const skip = (currentPage - 1) * limit;
 
     const users = await User.find(searchQuery, "-password")
@@ -61,9 +61,6 @@ export const listUsers = async (req, res, next) => {
         totalPages,
       },
     });
-
-    }
-
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
@@ -254,3 +251,7 @@ export const getBooksBySeller = async (req, res, next) => {
     return next(new HttpError(err.message, 500));
   }
 };
+
+
+
+

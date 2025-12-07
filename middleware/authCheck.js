@@ -8,6 +8,7 @@ const userAuthCheck = async (req, res, next) => {
     return next();
   }
   try {
+    
     const token = req.headers.authorization.split(" ")[1];
     if (! token) {
         return next(new HttpError("Authentication Failed", 403))
@@ -24,7 +25,7 @@ const userAuthCheck = async (req, res, next) => {
       }
     }
   } catch (err) {
-    return next(new HttpError("Authentication failedd", 403));
+    return next(new HttpError("Authentication failed", 403));
   }
 };
 

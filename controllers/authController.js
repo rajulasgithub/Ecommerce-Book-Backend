@@ -474,3 +474,78 @@ export const getSellerStats = async (req, res, next) => {
     return next(new HttpError("Failed to fetch seller stats", 500));
   }
 };
+
+
+
+
+
+export const getHomeBooks = async (req, res, next) => {
+  try {
+   
+    const newBooks = await Book.find({ is_deleted: false })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("title image author prize genre avgRating createdAt")
+      .lean();
+
+   
+    const newBooksWithTag = newBooks.map((book) => ({
+      ...book,
+      tag: "new"
+    }));
+
+   
+    const bestSellerAggregation = await Order.aggregate([
+      { $unwind: "$items" }, 
+      { $match: { "items.status": { $ne: "cancelled" } } }, 
+
+      {
+        $group: {
+          _id: "$items.book",
+          totalSold: { $sum: "$items.quantity" },
+        },
+      },
+
+      { $sort: { totalSold: -1 } }, 
+      { $limit: 10 },
+
+      {
+        $lookup: {
+          from: "books",
+          localField: "_id",
+          foreignField: "_id",
+          as: "book",
+        },
+      },
+
+      { $unwind: "$book" },
+
+      {
+        $project: {
+          _id: "$book._id",
+          title: "$book.title",
+          image: "$book.image",
+          author: "$book.author",
+          prize: "$book.prize",
+          genre: "$book.genre",
+          avgRating: "$book.avgRating",
+          totalSold: 1,
+        },
+      },
+    ]);
+
+    const bestSellerBooks = bestSellerAggregation.map((item) => ({
+      ...item,
+      tag: "best-seller",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      newBooks: newBooksWithTag,
+      bestSellers: bestSellerBooks,
+    });
+  } catch (err) {
+    console.error(err);
+    return next(new HttpError("Failed to fetch home books", 500));
+  }
+};

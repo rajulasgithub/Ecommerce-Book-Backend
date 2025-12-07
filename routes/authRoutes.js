@@ -1,5 +1,5 @@
 import express from 'express'
-import {userRegister, userLogin, updateUserProfile,getSellerStats, getProfile } from '../controllers/authController.js'
+import {userRegister, userLogin, updateUserProfile,getSellerStats, getProfile, getHomeBooks } from '../controllers/authController.js'
 import { check } from 'express-validator'
 import userAuthCheck from '../middleware/authCheck.js';
 import upload from '../middleware/fileUpload.js';
@@ -8,8 +8,7 @@ import upload from '../middleware/fileUpload.js';
 const authRoutes = express.Router()
 
 
-
-
+authRoutes.get("/gethomebooks",getHomeBooks);
 
 authRoutes.post(
   "/register",
@@ -83,6 +82,7 @@ authRoutes.post('/login', [
       notEmpty().
       withMessage("Password is required")
 ], userLogin )
+
 
 
 authRoutes.use(userAuthCheck)
