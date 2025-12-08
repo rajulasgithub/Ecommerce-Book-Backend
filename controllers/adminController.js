@@ -18,19 +18,19 @@ export const listUsers = async (req, res, next) => {
     page = Number(page);
     limit = Number(limit);
 
-    // Base query
+    // Base filter
     let searchQuery = {
       role: { $in: ["customer", "seller"] },
     };
 
-    // Filter by type
+    // Type filter
     if (type === "customer") {
       searchQuery.role = "customer";
     } else if (type === "seller") {
       searchQuery.role = "seller";
     }
 
-    // Add search filter if search string exists
+    // Search filter
     if (search) {
       searchQuery.$or = [
         { firstName: { $regex: search, $options: "i" } },
@@ -41,38 +41,27 @@ export const listUsers = async (req, res, next) => {
 
     const total = await User.countDocuments(searchQuery);
     const totalPages = Math.ceil(total / limit);
-
     const currentPage = page > totalPages && totalPages > 0 ? totalPages : page;
     const skip = (currentPage - 1) * limit;
 
-    // Fetch users
     const users = await User.find(searchQuery, "-password")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // Enrich users with only order counts
-    const enrichedUsers = await Promise.all(
+    // Add sellerOrderCount ONLY for sellers
+    const enriched = await Promise.all(
       users.map(async (u) => {
         const out = { ...u };
 
-        // CUSTOMER → count orders they placed
-        if (u.role === "customer") {
-          const count = await Order.countDocuments({
-            $or: [{ user: u._id }, { customer: u._id }],
-          });
-
-          out.ordersCount = count; // ONLY COUNT
-        }
-
-        // SELLER → count orders containing their items
         if (u.role === "seller") {
+          // Count all orders containing this seller's books
           const sellerOrderCount = await Order.countDocuments({
             "items.book.seller": u._id,
           });
 
-          out.sellerOrderCount = sellerOrderCount; // ONLY COUNT
+          out.sellerOrderCount = sellerOrderCount;
         }
 
         return out;
@@ -82,7 +71,7 @@ export const listUsers = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Users listed successfully",
-      data: enrichedUsers,
+      data: enriched,
       pagination: {
         total,
         page: currentPage,
@@ -90,6 +79,7 @@ export const listUsers = async (req, res, next) => {
         totalPages,
       },
     });
+
   } catch (error) {
     return next(new HttpError(error.message || "Server Error", 500));
   }
