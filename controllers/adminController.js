@@ -18,60 +18,42 @@ export const listUsers = async (req, res, next) => {
     page = Number(page);
     limit = Number(limit);
 
-    // Base filter
+    // Base query
     let searchQuery = {
       role: { $in: ["customer", "seller"] },
     };
 
-    // Type filter
+    // Filter by type
     if (type === "customer") {
       searchQuery.role = "customer";
     } else if (type === "seller") {
       searchQuery.role = "seller";
     }
 
-    // Search filter
+    // Add search filter if search string exists
     if (search) {
       searchQuery.$or = [
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { firstName: { $regex: search, $options: "i" } }, // Search by firstName
+        { lastName: { $regex: search, $options: "i" } },  // Search by lastName
+        { email: { $regex: search, $options: "i" } },     // Search by email
       ];
     }
 
     const total = await User.countDocuments(searchQuery);
     const totalPages = Math.ceil(total / limit);
+
     const currentPage = page > totalPages && totalPages > 0 ? totalPages : page;
     const skip = (currentPage - 1) * limit;
 
     const users = await User.find(searchQuery, "-password")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Add sellerOrderCount ONLY for sellers
-    const enriched = await Promise.all(
-      users.map(async (u) => {
-        const out = { ...u };
-
-        if (u.role === "seller") {
-          // Count all orders containing this seller's books
-          const sellerOrderCount = await Order.countDocuments({
-            "items.book.seller": u._id,
-          });
-
-          out.sellerOrderCount = sellerOrderCount;
-        }
-
-        return out;
-      })
-    );
+      .limit(limit);
 
     return res.status(200).json({
       success: true,
       message: "Users listed successfully",
-      data: enriched,
+      data: users,
       pagination: {
         total,
         page: currentPage,
@@ -79,11 +61,13 @@ export const listUsers = async (req, res, next) => {
         totalPages,
       },
     });
-
   } catch (error) {
-    return next(new HttpError(error.message || "Server Error", 500));
+    return next(new HttpError(error.message, 500));
   }
 };
+
+
+
 
 
 export const deleteUser = async (req, res, next) => {
