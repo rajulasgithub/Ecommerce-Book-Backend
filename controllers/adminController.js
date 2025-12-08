@@ -33,9 +33,9 @@ export const listUsers = async (req, res, next) => {
     // Add search filter if search string exists
     if (search) {
       searchQuery.$or = [
-        { firstName: { $regex: search, $options: "i" } }, // Search by firstName
-        { lastName: { $regex: search, $options: "i" } },  // Search by lastName
-        { email: { $regex: search, $options: "i" } },     // Search by email
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -45,15 +45,58 @@ export const listUsers = async (req, res, next) => {
     const currentPage = page > totalPages && totalPages > 0 ? totalPages : page;
     const skip = (currentPage - 1) * limit;
 
+    // fetch basic user data (exclude password)
     const users = await User.find(searchQuery, "-password")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+
+    // enrich each user with orders / order counts
+    // do in parallel for performance
+    const enrichedUsers = await Promise.all(
+      users.map(async (u) => {
+        const out = { ...u };
+
+        // if customer: fetch all orders for this user (check both 'user' and 'customer' fields)
+        if (u.role === "customer") {
+          // find orders where order.user == user._id OR order.customer == user._id
+          // select only fields we want to return (reduce payload)
+          const orders = await Order.find(
+            {
+              $or: [{ user: u._id }, { customer: u._id }],
+            },
+            // project fields - adjust as per your Order schema
+            "_id createdAt paymentStatus paymentMethod totalAmount items"
+          )
+            .sort({ createdAt: -1 })
+            .lean();
+
+          out.orders = orders;
+          out.ordersCount = orders.length;
+        }
+
+        // if seller: count orders that include items for this seller
+        if (u.role === "seller") {
+          // This assumes your order items include a book reference with seller field:
+          // order.items.book.seller === sellerId
+          // Adjust the path if your schema stores seller elsewhere.
+          const sellerOrderCount = await Order.countDocuments({
+            "items.book.seller": u._id,
+          });
+
+          out.sellerOrderCount = sellerOrderCount;
+        }
+
+        // return enriched user object
+        return out;
+      })
+    );
 
     return res.status(200).json({
       success: true,
       message: "Users listed successfully",
-      data: users,
+      data: enrichedUsers,
       pagination: {
         total,
         page: currentPage,
@@ -62,12 +105,9 @@ export const listUsers = async (req, res, next) => {
       },
     });
   } catch (error) {
-    return next(new HttpError(error.message, 500));
+    return next(new HttpError(error.message || "Server Error", 500));
   }
 };
-
-
-
 
 
 export const deleteUser = async (req, res, next) => {
