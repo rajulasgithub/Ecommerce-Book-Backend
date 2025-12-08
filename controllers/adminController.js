@@ -14,19 +14,23 @@ export const listUsers = async (req, res, next) => {
     }
 
     let { page = 1, limit = 10, search = "", type = "" } = req.query;
+
     page = Number(page);
     limit = Number(limit);
 
-    // Base filter (only customers & sellers)
+    // Base query
     let searchQuery = {
       role: { $in: ["customer", "seller"] },
     };
 
-    // Type filter
-    if (type === "customer") searchQuery.role = "customer";
-    else if (type === "seller") searchQuery.role = "seller";
+    // Filter by type
+    if (type === "customer") {
+      searchQuery.role = "customer";
+    } else if (type === "seller") {
+      searchQuery.role = "seller";
+    }
 
-    // Search filter
+    // Add search filter if search string exists
     if (search) {
       searchQuery.$or = [
         { firstName: { $regex: search, $options: "i" } },
@@ -37,91 +41,48 @@ export const listUsers = async (req, res, next) => {
 
     const total = await User.countDocuments(searchQuery);
     const totalPages = Math.ceil(total / limit);
+
     const currentPage = page > totalPages && totalPages > 0 ? totalPages : page;
     const skip = (currentPage - 1) * limit;
 
-    // fetch users (paged) - exclude password
+    // Fetch users
     const users = await User.find(searchQuery, "-password")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // If no users on this page, return early with empty data
-    if (!users || users.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "Users listed successfully",
-        data: [],
-        pagination: {
-          total,
-          page: currentPage,
-          limit,
-          totalPages,
-        },
-      });
-    }
+    // Enrich users with only order counts
+    const enrichedUsers = await Promise.all(
+      users.map(async (u) => {
+        const out = { ...u };
 
-    // Build lists of IDs for aggregation
-    const userIds = users.map((u) => (typeof u._id === "string" ? u._id : u._id.toString()));
-    const sellerIds = users.filter((u) => u.role === "seller").map((u) => (typeof u._id === "string" ? u._id : u._id.toString()));
+        // CUSTOMER → count orders they placed
+        if (u.role === "customer") {
+          const count = await Order.countDocuments({
+            $or: [{ user: u._id }, { customer: u._id }],
+          });
 
-    // 1) Customer counts aggregation:
-    //    We treat orders' `user` and `customer` fields as possible purchaser fields.
-    //    The pipeline collects unique orders per user (so each order counts once).
-    let customerCountsMap = {};
-    if (userIds.length > 0) {
-      const customerAgg = await Order.aggregate([
-        // project an array of both possible purchaser fields
-        {
-          $project: {
-            _id: 1,
-            purchasers: ["$user", "$customer"],
-          },
-        },
-        { $unwind: "$purchasers" },
-        { $match: { purchasers: { $in: userIds.map(id => (id)) } } },
-        { $group: { _id: "$purchasers", orders: { $addToSet: "$_id" } } },
-        { $project: { _id: 1, count: { $size: "$orders" } } },
-      ]);
+          out.ordersCount = count; // ONLY COUNT
+        }
 
-      // convert to map for quick lookup
-      customerAgg.forEach((r) => {
-        customerCountsMap[String(r._id)] = r.count;
-      });
-    }
+        // SELLER → count orders containing their items
+        if (u.role === "seller") {
+          const sellerOrderCount = await Order.countDocuments({
+            "items.book.seller": u._id,
+          });
 
-    // 2) Seller counts aggregation:
-    //    Count distinct orders that include at least one item whose book.seller is the seller id.
-    let sellerCountsMap = {};
-    if (sellerIds.length > 0) {
-      const sellerAgg = await Order.aggregate([
-        { $match: { "items.book.seller": { $in: sellerIds.map(id => (id)) } } },
-        { $unwind: "$items" },
-        { $match: { "items.book.seller": { $in: sellerIds.map(id => (id)) } } },
-        { $group: { _id: "$items.book.seller", orders: { $addToSet: "$_id" } } },
-        { $project: { _id: 1, count: { $size: "$orders" } } },
-      ]);
+          out.sellerOrderCount = sellerOrderCount; // ONLY COUNT
+        }
 
-      sellerAgg.forEach((r) => {
-        sellerCountsMap[String(r._id)] = r.count;
-      });
-    }
-
-    // Attach counts to users (defaults to 0)
-    const enriched = users.map((u) => {
-      const idStr = typeof u._id === "string" ? u._id : String(u._id);
-      return {
-        ...u,
-        customerOrderCount: customerCountsMap[idStr] ? customerCountsMap[idStr] : 0,
-        sellerOrderCount: sellerCountsMap[idStr] ? sellerCountsMap[idStr] : 0,
-      };
-    });
+        return out;
+      })
+    );
 
     return res.status(200).json({
       success: true,
       message: "Users listed successfully",
-      data: enriched,
+      data: enrichedUsers,
       pagination: {
         total,
         page: currentPage,
@@ -133,6 +94,7 @@ export const listUsers = async (req, res, next) => {
     return next(new HttpError(error.message || "Server Error", 500));
   }
 };
+
 
 
 export const deleteUser = async (req, res, next) => {
