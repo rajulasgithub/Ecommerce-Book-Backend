@@ -1,5 +1,6 @@
-import sendBlockStatusEmail from "../config/mail/sendBlockStatusEmail.js";
-import sendDeleteUserEmail from "../config/mail/sendDeleteUserEmail.js";
+import emailTemplates from "../config/mail/emailTemplate.js";
+import { sendBlockUnblockEmail, sendDeletUserEmail } from "../config/mail/nodemailer.js";
+
 import { Book } from "../models/book.js";
 import { Order } from "../models/order.js";
 import { User } from "../models/user.js";
@@ -18,24 +19,24 @@ export const listUsers = async (req, res, next) => {
     page = Number(page);
     limit = Number(limit);
 
-    // Base query
+   
     let searchQuery = {
       role: { $in: ["customer", "seller"] },
     };
 
-    // Filter by type
+   
     if (type === "customer") {
       searchQuery.role = "customer";
     } else if (type === "seller") {
       searchQuery.role = "seller";
     }
 
-    // Add search filter if search string exists
+   
     if (search) {
       searchQuery.$or = [
-        { firstName: { $regex: search, $options: "i" } }, // Search by firstName
-        { lastName: { $regex: search, $options: "i" } },  // Search by lastName
-        { email: { $regex: search, $options: "i" } },     // Search by email
+        { firstName: { $regex: search, $options: "i" } }, 
+        { lastName: { $regex: search, $options: "i" } },  
+        { email: { $regex: search, $options: "i" } },     
       ];
     }
 
@@ -84,12 +85,18 @@ export const deleteUser = async (req, res, next) => {
     if (!user) {
       return next(new HttpError("User not found", 404));
     }
-
-    try {
-      await sendDeleteUserEmail(user.email, user.firstName);
-    } catch (err) {
-      console.error("Failed to send delete email:", err);
-    }
+         const subject = 'Successfully  deleted user ';
+              const template = emailTemplates.delete_user_mail
+              const user_name = user.firstName
+              const to = user.email
+              const context = {
+                received_by: user_name,
+                 
+              }  
+  
+   
+      await sendDeletUserEmail(to,context,template,subject);
+   
 
     await User.findByIdAndDelete(id);
 
@@ -124,13 +131,17 @@ export const blockUnblockUser = async (req, res, next) => {
     await user.save();
 
     // Send email notification
-    try {
-      await sendBlockStatusEmail(user.email, user.firstName, user.blocked);
-      console.log("Block/Unblock email sent successfully!");
-    } catch (err) {
-      console.error("Failed to send block/unblock email:", err);
-    }
-
+          const subject = 'Successfully blocked  ';
+              const template = emailTemplates.status_update_mail
+              const user_name = user.firstName
+              const to = user.email
+              const context = {
+                received_by: user_name,
+                 
+              }  
+  
+      await sendBlockUnblockEmail(to, template,context,user.blocked);
+    
     return res.status(200).json({
       success: true,
       message: `${user.role} has been ${

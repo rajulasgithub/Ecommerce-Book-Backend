@@ -313,13 +313,12 @@ export const addReview = async (req, res, next) => {
       return next(new HttpError("No book found", 404));
     }
 
-    // find existing review by same user
     let existingReview = book.reviews.find(
       (r) => r.user.toString() === userId.toString()
     );
 
     if (existingReview) {
-      // update existing review
+    
       if (rating !== undefined) existingReview.rating = rating;
       if (comment) existingReview.comment = comment;
     } else {

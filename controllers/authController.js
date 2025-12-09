@@ -3,9 +3,10 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import HttpError from "../helpers/httpError.js";
 import { validationResult } from "express-validator";
-import sendWelcomeEmail from "../config/mail/sendWelcomeEmail.js";
 import { Order } from "../models/order.js";
 import { Book } from "../models/book.js";
+import emailTemplates from "../config/mail/emailTemplate.js";
+import { sendWelcomeEmail } from "../config/mail/nodemailer.js";
 // import otpGenerator from 'otp-generator'
 // import { OTP } from "../models/otp.js";
 // import { sendOtpEmail } from "../config/sendOtp.js";
@@ -52,12 +53,16 @@ export const userRegister = async (req, res, next) => {
         await newUser.save();
 
           const welcomeLink = "https://tailwindcss.com/"; 
-            try {
-          await sendWelcomeEmail(newUser.email, newUser.firstName, welcomeLink);
-          console.log("Welcome email sent successfully!");
-        } catch (err) {
-          console.error("Failed to send welcome email:", err);
-        }
+          const subject = 'Successfully  registered ';
+          const template = emailTemplates.welcome_mail
+          const user_name = newUser.firstName
+          const to = newUser.email
+          const context = {
+              received_by: user_name,
+              check:welcomeLink
+          }  
+            
+          await sendWelcomeEmail(to,context,subject,template)
 
        
         const token = jwt.sign(
