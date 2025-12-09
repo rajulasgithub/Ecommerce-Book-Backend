@@ -313,16 +313,17 @@ export const addReview = async (req, res, next) => {
       return next(new HttpError("No book found", 404));
     }
 
-    // Check if user has already given a rating
-    let userRating = book.reviews.find(
-      (r) => r.user.toString() === userId.toString() && r.rating !== undefined
+    // find existing review by same user
+    let existingReview = book.reviews.find(
+      (r) => r.user.toString() === userId.toString()
     );
 
-    if (userRating) {
-      // Update the rating (only one per user)
-      userRating.rating = rating;
+    if (existingReview) {
+      // update existing review
+      if (rating !== undefined) existingReview.rating = rating;
+      if (comment) existingReview.comment = comment;
     } else {
-      // First-time rating, create new review object
+      // create new review
       book.reviews.push({
         user: userId,
         rating,
@@ -330,15 +331,7 @@ export const addReview = async (req, res, next) => {
       });
     }
 
-    // Always add the new comment as a separate review entry
-    if (comment) {
-      book.reviews.push({
-        user: userId,
-        comment,
-      });
-    }
-
-    // Recalculate average rating
+    // recalculate avg rating
     book.calculateRating();
 
     await book.save();
@@ -346,6 +339,7 @@ export const addReview = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Review added successfully",
+      data: book,
     });
   } catch (error) {
     return next(new HttpError(error.message, 500));
