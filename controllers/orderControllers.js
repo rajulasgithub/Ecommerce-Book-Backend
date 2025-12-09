@@ -38,15 +38,6 @@ export const orderItems = async (req, res, next) => {
     });
 
     await newOrder.save();
-
-   
-  
-      const newAddress = new Address({
-        user: userId,
-        addresses:address
-      })
-
-      await newAddress.save();
   
     res.status(201).json({
       success: true,
