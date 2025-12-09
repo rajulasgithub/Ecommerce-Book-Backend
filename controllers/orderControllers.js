@@ -6,6 +6,7 @@ import { Address } from "../models/address.js";
 
 export const orderItems = async (req, res, next) => {
   try {
+    console.log(req.body)
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
