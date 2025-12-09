@@ -305,7 +305,7 @@ export const addReview = async (req, res, next) => {
     const { bookId } = req.params;
 
     if (userRole !== "customer") {
-      return next(new HttpError("Only customers can add a review", 404));
+      return next(new HttpError("Only customers can add a review", 403));
     }
 
     const book = await Book.findById(bookId);
@@ -313,21 +313,16 @@ export const addReview = async (req, res, next) => {
       return next(new HttpError("No book found", 404));
     }
 
-    // Check if user already reviewed
-    const existingReview = book.reviews.find(
-      (r) => r.user.toString() === userId.toString()
+    // Check if user has already given a rating
+    let userRating = book.reviews.find(
+      (r) => r.user.toString() === userId.toString() && r.rating !== undefined
     );
 
-    if (existingReview) {
-      // User has reviewed before → update ONLY comment
-      if (comment) {
-        existingReview.comment = comment;
-      }
-
-      // Do NOT allow updating rating
-      // If rating is sent again, ignore it
+    if (userRating) {
+      // Update the rating (only one per user)
+      userRating.rating = rating;
     } else {
-      // First time review → allow rating + comment
+      // First-time rating, create new review object
       book.reviews.push({
         user: userId,
         rating,
@@ -335,14 +330,22 @@ export const addReview = async (req, res, next) => {
       });
     }
 
+    // Always add the new comment as a separate review entry
+    if (comment) {
+      book.reviews.push({
+        user: userId,
+        comment,
+      });
+    }
+
+    // Recalculate average rating
     book.calculateRating();
+
     await book.save();
 
     return res.status(200).json({
       success: true,
-      message: existingReview
-        ? "Your review comment has been updated"
-        : "Review added successfully",
+      message: "Review added successfully",
     });
   } catch (error) {
     return next(new HttpError(error.message, 500));

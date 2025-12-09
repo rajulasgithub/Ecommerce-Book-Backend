@@ -120,8 +120,6 @@ export const getSellerOrders = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Keep only orders that contain at least one item belonging to this seller
-    // and optionally reduce each order.items to only the seller's items
     const sellerOrders = orders
       .map((order) => {
         // items that belong to this seller (book.user._id matches)
