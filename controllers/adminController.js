@@ -95,7 +95,7 @@ export const deleteUser = async (req, res, next) => {
               }  
   
    
-      await sendDeletUserEmail(to,context,template,subject);
+      await sendDeletUserEmail(to,subject,template,context);
    
 
     await User.findByIdAndDelete(id);
@@ -131,16 +131,18 @@ export const blockUnblockUser = async (req, res, next) => {
     await user.save();
 
     // Send email notification
-          const subject = 'Successfully blocked  ';
+         const subject = user.blocked 
+  ? "Your account has been blocked"
+  : "Your account has been unblocked";
               const template = emailTemplates.status_update_mail
               const user_name = user.firstName
               const to = user.email
               const context = {
-                received_by: user_name,
-                 
-              }  
+  received_by: user_name,
+  status: user.blocked ? "blocked" : "unblocked",
+};
   
-      await sendBlockUnblockEmail(to, template,context,user.blocked);
+      await sendBlockUnblockEmail(to,subject,template,context,user.blocked);
     
     return res.status(200).json({
       success: true,
