@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 import nodemailer from 'nodemailer'
 import hbs from 'nodemailer-express-handlebars'
 
-const fromEmail = process.env.MAIL_USER;
+const fromEmail = process.env.EMAIL_USER;
 
 let transport;
 
@@ -34,10 +34,7 @@ export const sendWelcomeEmail = async ( to, subject, template, context) => {
         template,
         to,
         subject,
-        context,
-        headers: {
-            "X-MT-Category" : 'Reset-password-otp'
-        },
+        context 
     };
 
     try {
@@ -47,6 +44,7 @@ export const sendWelcomeEmail = async ( to, subject, template, context) => {
         console.log('Nodemailer error sending email to' , error);
       }
 };
+
 
 export const sendBlockUnblockEmail = async ( to, subject, template, context) => {
     const mailOptions = {
