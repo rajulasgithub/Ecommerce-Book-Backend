@@ -20,17 +20,20 @@ let transport;
 
 const handlebarOptions = {
     viewEngine: {
+        extname: ".handlebars",          // Add this
         partialsDir: path.resolve('./views/'),
         defaultLayout: false,
     },
     viewPath: path.resolve('./views/'),
+    extName: ".handlebars"              // Add this
 };
+
 
 transport.use('compile', hbs(handlebarOptions))
 
 export const sendWelcomeEmail = async ( to, subject, template, context) => {
     const mailOptions = {
-        from: `"Readify"${fromEmail}`,
+        from: `"Readify" <${fromEmail}>`,
         template,
         to,
         subject,
