@@ -62,8 +62,7 @@ export const userRegister = async (req, res, next) => {
               check:welcomeLink
           }  
             
-          await sendWelcomeEmail(to,context,subject,template)
-
+          await sendWelcomeEmail(to,subject,template,context)
        
         const token = jwt.sign(
           {
