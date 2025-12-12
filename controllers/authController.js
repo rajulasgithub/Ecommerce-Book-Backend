@@ -114,10 +114,10 @@ export const userLogin = async (req, res, next) => {
       return next(new HttpError("User not found", 404));
     }
 
-    // Check if user is blocked
-    // if (user.blocked) {
-    //   return next(new HttpError("Your account has been blocked. Please contact support.", 403));
-    // }
+   
+    if (user.blocked) {
+      return next(new HttpError("Your account has been blocked. Please contact support.", 403));
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
 

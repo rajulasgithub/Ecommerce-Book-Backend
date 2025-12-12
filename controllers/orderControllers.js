@@ -2,6 +2,7 @@ import { validationResult } from "express-validator";
 import HttpError from "../helpers/httpError.js";
 import { Order } from "../models/order.js";
 import { Address } from "../models/address.js";
+import mongoose from "mongoose";
 
 
 export const orderItems = async (req, res, next) => {
@@ -54,39 +55,96 @@ export const orderItems = async (req, res, next) => {
 
 export const getUserOrders = async (req, res, next) => {
   try {
-
     const { userId, userRole } = req.userData;
 
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can view orders", 403));
     }
-    else{
 
-       const orders = await Order.find({ user: userId })
-      .populate("items.book")   
-      .sort({ createdAt: -1 });  
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 8);
+    const skip = (page - 1) * limit;
 
-    if (!orders || orders.length === 0) {
-      return res.status(200).json({
-        message: "No orders found",
-        orders: [],
-      });
-    }
-    else{
-   res.status(200).json({
-      message: "Orders fetched successfully",
-      orders,
+    // Convert userId safely into ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Aggregation pipeline
+    const pipeline = [
+      { $match: { user: userObjectId } },
+
+      // Unwind items array → each item becomes one document
+      { $unwind: "$items" },
+
+      // Lookup book details
+      {
+        $lookup: {
+          from: "books",
+          localField: "items.book",
+          foreignField: "_id",
+          as: "bookDetails"
+        }
+      },
+
+      // Unwind bookDetails for cleaner structure
+      { $unwind: "$bookDetails" },
+
+      // Sort latest first
+      { $sort: { createdAt: -1 } },
+
+      // Pagination
+      { $skip: skip },
+      { $limit: limit },
+
+      // Shape the response
+      {
+        $project: {
+          _id: 1,
+          createdAt: 1,
+          "items.quantity": 1,
+          "items.price": 1,
+
+          book: {
+            _id: "$bookDetails._id",
+            title: "$bookDetails.title",
+            author: "$bookDetails.author",
+            image: "$bookDetails.image",
+            price: "$bookDetails.price"
+          }
+        }
+      }
+    ];
+
+    // Fetch paginated order items
+    const orderItems = await Order.aggregate(pipeline);
+
+    // Count total order items separately
+    const countPipeline = [
+      { $match: { user: userObjectId } },
+      { $unwind: "$items" },
+      { $count: "totalItems" }
+    ];
+
+    const countResult = await Order.aggregate(countPipeline);
+
+    const totalItems = countResult[0]?.totalItems || 0;
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+    return res.status(200).json({
+      message:
+        totalItems === 0
+          ? "No order items found"
+          : "Order items fetched successfully",
+      orderItems,
+      page,
+      limit,
+      totalPages,
+      totalItems
     });
-    }
-
-   
-    }
 
   } catch (error) {
     return next(new HttpError(error.message || "Unable to fetch orders", 500));
   }
 };
-
 
 
 // sellerorders

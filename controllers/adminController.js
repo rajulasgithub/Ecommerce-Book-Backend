@@ -239,27 +239,37 @@ export const getDashboardStats = async (req, res, next) => {
 
 export const getBooksBySeller = async (req, res, next) => {
   try {
-    const { userRole } = req.userData; 
+    const { userRole } = req.userData;
     const { id } = req.params;
-     console.log(req.params)
-    
+    const page = parseInt(req.query.page ) || 1;
+    const limit = parseInt(req.query.limit ) || 10;
+    const skip = (page - 1) * limit;
+
     if (userRole !== "admin") {
       return next(new HttpError("Access Denied: Admin Only", 403));
     }
-    else{
-      const seller = await User.findById(id);
+
+    const seller = await User.findById(id);
     if (!seller || seller.role !== "seller") {
       return next(new HttpError("Seller not found", 404));
     }
-    else{
-   const books = await Book.find({ user: id, is_deleted: false }).sort({ });
-      console.log(books)
-        return res.status(200).json({
-          success: true,
-          data:books,
-        });
-    }
-    }  
+
+    const totalBooks = await Book.countDocuments({ user: id, is_deleted: false });
+    const books = await Book.find({ user: id, is_deleted: false })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.status(200).json({
+      success: true,
+      data: books,
+      pagination: {
+        totalBooks,
+        page,
+        limit,
+        totalPages: Math.ceil(totalBooks / limit),
+      },
+    });
   } catch (err) {
     return next(new HttpError(err.message, 500));
   }
