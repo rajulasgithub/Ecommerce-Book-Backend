@@ -2,6 +2,9 @@ import { validationResult } from "express-validator";
 import HttpError from "../helpers/httpError.js";
 import { Book } from "../models/book.js";
 import mongoose from "mongoose";
+import { sendDeleteBookEmail } from "../config/mail/nodemailer.js";
+import emailTemplates from "../config/mail/emailTemplate.js";
+import { User } from "../models/user.js";
 
 
 export const addNewBook = async (req, res, next) => {
@@ -10,7 +13,7 @@ export const addNewBook = async (req, res, next) => {
     console.log("Validation errors:", error);
 
     if (!error.isEmpty()) {
-      // Optional: log specific errors
+   
       console.log("Validation error details:", error.array());
       return next(new HttpError("Invalid User Input", 400));
     }
@@ -238,36 +241,54 @@ export const updateBook = async (req, res, next) => {
 
 // delete a book
 export const deleteBook = async (req, res, next) => {
-    try {
-        const {id} = req.params;
-         const {userRole} = req.userData
+  try {
+    const { id } = req.params;
+    const { userRole } = req.userData;
 
-         if(userRole !=="seller"  &&  userRole !=="admin"){
-             return next(new HttpError("Only sellers and admin can delete books", 403));
-         }
-         else{       
-       
-
-        
-            const deleted = await Book.findByIdAndUpdate(
-                id, { is_deleted: true },
-                {runValidators: true }
-            );
-
-            if (!deleted) {
-                return next(new HttpError("Book not deleted", 400));
-            }
-            else {
-                return res.status(200).json({
-                    success: true,
-                    message: "Successfully deleted Book",
-                });
-            }
-        
-         }
-    } catch (error) {
-        return next(new HttpError(error.message, 500));
+    // Only seller or admin can delete
+    if (userRole !== "seller" && userRole !== "admin") {
+      return next(new HttpError("Only sellers and admin can delete books", 403));
     }
+
+    // Fetch the book
+    const book = await Book.findById(id).populate("user"); // populate user if referenced
+    if (!book) {
+      return next(new HttpError("Book not found", 404));
+    }
+
+    // Mark as deleted
+    book.is_deleted = true;
+    await book.save();
+
+    // Fetch user details
+    const user = await User.findById(book.user); // or book.user if populated
+    if (!user) {
+      return next(new HttpError("User not found", 404));
+    }
+
+    // Prepare email
+    const subject = "Your book has been deleted";
+    const template = emailTemplates.delete_book_email; 
+    const to = user.email
+    const context = {
+      received_by: user.firstName,
+      book_title: book.title,
+      book_author: book.author,
+      book_category: book.category,
+    };
+    
+
+    // Send email
+   sendDeleteBookEmail(to, subject, template, context);
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully deleted book and notified user",
+    });
+
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
 };
 
 

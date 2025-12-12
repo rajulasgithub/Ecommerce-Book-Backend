@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Deleted Notification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      background-color: #fff;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+    h2 {
+      color: #c57a45;
+    }
+    p {
+      line-height: 1.6;
+    }
+    .book-details {
+      background-color: #f9f9f9;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .book-details p {
+      margin: 5px 0;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Hello {{received_by}},</h2>
+
+    <p>We wanted to inform you that your book has been deleted from our platform. Here are the details of the book:</p>
+
+    <div class="book-details">
+      <p><strong>Title:</strong> {{book_title}}</p>
+      <p><strong>Author:</strong> {{book_author}}</p>
+      <p><strong>Category:</strong> {{book_category}}</p>
+      {{#if book_price}}
+        <p><strong>Price:</strong> ₹{{book_price}}</p>
+      {{/if}}
+      {{#if book_publish_date}}
+        <p><strong>Publish Date:</strong> {{book_publish_date}}</p>
+      {{/if}}
+    </div>
+
+    <p>If you have any questions, feel free to contact our support team.</p>
+
+    <div class="footer">
+      &copy; {{current_year}} Readify. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>

@@ -46,7 +46,7 @@ export const sendWelcomeEmail = async ( to, subject, template, context) => {
 
     try {
         await transport.sendMail(mailOptions);
-        console.log('Message sent: %s',);
+        // console.log('Message sent: %s',);
       } catch (error) {
         console.log('Nodemailer error sending email to' , error);
       }
@@ -54,7 +54,7 @@ export const sendWelcomeEmail = async ( to, subject, template, context) => {
 
 
 export const sendBlockUnblockEmail = async ( to, subject, template, context,blocked) => {
-    console.log("data:",to,subject,context)
+    // console.log("data:",to,subject,context)
     const mailOptions = {
        from: `"Readify" <${fromEmail}>`,
         template,
@@ -74,6 +74,28 @@ export const sendBlockUnblockEmail = async ( to, subject, template, context,bloc
 
 
 export const sendDeletUserEmail = async ( to, subject, template, context) => {
+    const mailOptions = {
+       from: `"Readify" <${fromEmail}>`,
+        template,
+        to,
+        subject,
+        context,
+       
+    };
+
+    try {
+        await transport.sendMail(mailOptions);
+        // console.log('Message sent: %s',);
+      } catch (error) {
+        console.log('Nodemailer error sending email to' , error);
+      }
+};
+
+
+
+
+export const sendDeleteBookEmail = async ( to, subject, template, context) => {
+  console.log("deleteerror",to,subject,template)
     const mailOptions = {
        from: `"Readify" <${fromEmail}>`,
         template,
