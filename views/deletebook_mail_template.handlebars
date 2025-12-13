@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
       margin: 0;
       padding: 0;
     }
+
     .container {
       background-color: #fff;
       max-width: 600px;
@@ -20,21 +22,26 @@
       border-radius: 8px;
       border: 1px solid #ddd;
     }
+
     h2 {
       color: #c57a45;
     }
+
     p {
       line-height: 1.6;
     }
+
     .book-details {
       background-color: #f9f9f9;
       padding: 10px 15px;
       border-radius: 5px;
       margin-top: 10px;
     }
+
     .book-details p {
       margin: 5px 0;
     }
+
     .footer {
       margin-top: 30px;
       font-size: 12px;
@@ -42,6 +49,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <h2>Hello {{received_by}},</h2>
@@ -53,10 +61,10 @@
       <p><strong>Author:</strong> {{book_author}}</p>
       <p><strong>Category:</strong> {{book_category}}</p>
       {{#if book_price}}
-        <p><strong>Price:</strong> ₹{{book_price}}</p>
+      <p><strong>Price:</strong> ₹{{book_price}}</p>
       {{/if}}
       {{#if book_publish_date}}
-        <p><strong>Publish Date:</strong> {{book_publish_date}}</p>
+      <p><strong>Publish Date:</strong> {{book_publish_date}}</p>
       {{/if}}
     </div>
 
@@ -67,4 +75,5 @@
     </div>
   </div>
 </body>
+
 </html>

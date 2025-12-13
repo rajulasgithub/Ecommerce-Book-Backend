@@ -14,7 +14,7 @@ const userSchema = new mongoose.Schema({
   fullPhone: {
     type: String,
     unique: true,
-    required:true
+    required: true
   },
   email: {
     type: String,
@@ -29,27 +29,25 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     required: true,
-    enum: ["customer", "seller","admin"],
+    enum: ["customer", "seller", "admin"],
   },
   blocked: {
-  type: Boolean,
-  default: false
-},
+    type: Boolean,
+    default: false
+  },
   image: {
-      type: String,      
-      required: false,
-      default: null,    
-    },
-    bio: {
-      type: String,
-      trim: true,
-      required: false,
-      default: "",
-    },
-
-
+    type: String,
+    required: false,
+    default: null,
+  },
+  bio: {
+    type: String,
+    trim: true,
+    required: false,
+    default: "",
+  },
 },
-{ timestamps: true }
+  { timestamps: true }
 );
 
 

@@ -1,4 +1,3 @@
-// adminAuth.js
 import HttpError from "../helpers/httpError.js";
 
 export const adminCheck = (req, res, next) => {

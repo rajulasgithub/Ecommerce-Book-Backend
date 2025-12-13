@@ -3,6 +3,7 @@ import userAuthCheck from '../middleware/authCheck.js'
 import { getSellerOrders, getUserOrders, orderItems, deleteAddress, getSellerOrderDetails, updateOrderItemStatus, getSavedAddress, updateAddress, addAddress } from '../controllers/orderControllers.js'
 import { check } from 'express-validator'
 
+
 const orderRoutes = express.Router()
 
 orderRoutes.use(userAuthCheck)
@@ -25,7 +26,7 @@ orderRoutes.post(
     check('items.*.price')
       .notEmpty().withMessage('Price is required')
       .isFloat({ min: 1 }).withMessage('Price must be a positive number'),
-      
+
     check('address.fullName').notEmpty().withMessage('Full name is required'),
     check('address.phone').notEmpty().withMessage('Phone is required'),
     check('address.addressLine1').notEmpty().withMessage('Address Line 1 is required'),
@@ -42,10 +43,10 @@ orderRoutes.get('/getallorder', getUserOrders);
 orderRoutes.get('/sellerorder', getSellerOrders);
 orderRoutes.patch('/updatestatus/:orderId/:itemId', updateOrderItemStatus);
 orderRoutes.get('/sellerorderdetail/:orderId', getSellerOrderDetails);
-orderRoutes.get("/address",getSavedAddress);
-orderRoutes.patch("/updateaddress",updateAddress);
-orderRoutes.post("/addaddress",addAddress);
-orderRoutes.delete("/deleteaddress/:id",deleteAddress);
+orderRoutes.get("/address", getSavedAddress);
+orderRoutes.patch("/updateaddress", updateAddress);
+orderRoutes.post("/addaddress", addAddress);
+orderRoutes.delete("/deleteaddress/:id", deleteAddress);
 
 
 export default orderRoutes

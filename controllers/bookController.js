@@ -13,7 +13,7 @@ export const addNewBook = async (req, res, next) => {
     console.log("Validation errors:", error);
 
     if (!error.isEmpty()) {
-   
+
       console.log("Validation error details:", error.array());
       return next(new HttpError("Invalid User Input", 400));
     }
@@ -23,53 +23,52 @@ export const addNewBook = async (req, res, next) => {
     if (userRole !== "seller") {
       return next(new HttpError("Only seller can add the book", 403));
     }
+    else {
+      const {
+        title,
+        description,
+        excerpt,
+        page_count,
+        genre,
+        language,
+        author,
+        publish_date,
+        prize,
+        category,
+      } = req.body;
 
-    console.log("Request body:", req.body);
-    console.log("Uploaded file:", req.file);
+      const imagePath = req.file ? req.file.path : null;
 
-    const {
-      title,
-      description,
-      excerpt,
-      page_count,
-      genre,
-      language,
-      author,
-      publish_date,
-      prize,
-      category,
-    } = req.body;
+      const date = new Date(publish_date);
 
-    const imagePath = req.file ? req.file.path : null; // ✅ single image
+      const book = {
+        user: userId,
+        image: imagePath,
+        title,
+        description,
+        excerpt,
+        page_count: Number(page_count),
+        genre,
+        language,
+        author,
+        publish_date: date,
+        prize: Number(prize),
+        category,
+      };
 
-    const date = new Date(publish_date);
+      const newBook = new Book(book);
+      await newBook.save();
 
-    const book = {
-      user: userId,
-      image: imagePath,            // if schema expects a string
-      title,
-      description,
-      excerpt,
-      page_count: Number(page_count),
-      genre,                       // here it's a string "Fiction, Thriller"
-      language,                    // also string "English, Malayalam"
-      author,
-      publish_date: date,
-      prize: Number(prize),
-      category,
-    };
-
-    const newBook = new Book(book);
-    await newBook.save();
-
-    if (!newBook) {
-      return next(new HttpError("Book not added", 400));
+      if (!newBook) {
+        return next(new HttpError("Book not added", 400));
+      }
+      else {
+        return res.status(201).json({
+          success: true,
+          message: "Successfully added book",
+        });
+      }
     }
-
-    return res.status(201).json({
-      success: true,
-      message: "Successfully added book",
-    });
   } catch (error) {
     console.error("Add book error:", error);
     return next(new HttpError(error.message, 500));
@@ -77,68 +76,66 @@ export const addNewBook = async (req, res, next) => {
 };
 
 
-
-
 // list books
 export const listBooks = async (req, res, next) => {
   try {
 
     const error = validationResult(req)
-    
-    if(!error.isEmpty()){
+
+    if (!error.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
-    else{
-    const { userRole, userId } = req.userData;
-    let { page, limit, search = "" } = req.query;
+    else {
+      const { userRole, userId } = req.userData;
+      let { page, limit, search = "" } = req.query;
 
-    page = Number(page) 
-    limit = Number(limit) 
-    
-    let searchQuery = { is_deleted: false };
+      page = Number(page)
+      limit = Number(limit)
 
-    if (search) {
-      const priceValue = Number(search);
+      let searchQuery = { is_deleted: false };
 
-      if (!isNaN(priceValue)) {
-        searchQuery.prize = priceValue;
-      } else {
-        searchQuery.$or = [
-          { title: { $regex: search, $options: "i" } },
-          { category: { $regex: search, $options: "i" } },
-        ];
+      if (search) {
+        const priceValue = Number(search);
+
+        if (!isNaN(priceValue)) {
+          searchQuery.prize = priceValue;
+        } else {
+          searchQuery.$or = [
+            { title: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+          ];
+        }
       }
-    }
-    if (userRole === "seller") {
-      searchQuery.user = userId;  
-    }
+      if (userRole === "seller") {
+        searchQuery.user = userId;
+      }
 
-    const total = await Book.countDocuments(searchQuery);
-    const totalPages = Math.ceil(total / limit);
+      const total = await Book.countDocuments(searchQuery);
+      const totalPages = Math.ceil(total / limit);
 
-    const currentPage =
-      page > totalPages && totalPages > 0 ? totalPages : page;
+      const currentPage =
+        page > totalPages && totalPages > 0 ? totalPages : page;
 
-    const skip = (currentPage - 1) * limit;
+      const skip = (currentPage - 1) * limit;
 
-   
-    const books = await Book.find(searchQuery)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
 
-    return res.status(200).json({
-      success: true,
-      error: false,
-      message: "Books listed successfully",
-      data: books,
-      pagination: {
-        total,
-        page: currentPage,
-        limit,
-        totalPages,
-      },
-    });
+      const books = await Book.find(searchQuery)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        success: true,
+        error: false,
+        message: "Books listed successfully",
+        data: books,
+        pagination: {
+          total,
+          page: currentPage,
+          limit,
+          totalPages,
+        },
+      });
 
     }
 
@@ -151,33 +148,34 @@ export const listBooks = async (req, res, next) => {
 
 // get a single book
 export const getSingleBook = async (req, res, next) => {
-    try {
- 
-        const {id} = req.params
+  try {
 
-        if (!id) {
-            return next(new HttpError("Book ID is required", 400));
-        }
-        else {
-           
-            const book = await Book.findById(id).select(
-                "_id author description excerpt genre image language page_count prize title category publish_date"
-            );
-            if (!book) {
-                return next(new HttpError("Book Not Found", 404));
-            }
-            else {
-                return res.status(200).json({
-                    success: true,
-                    message: "Successfully found Book",
-                    data: book,
-                });
-            }
-        }
-    } catch (error) {
-        return next(new HttpError(error.message, 400));
+    const { id } = req.params
+
+    if (!id) {
+      return next(new HttpError("Book ID is required", 400));
     }
+    else {
+
+      const book = await Book.findById(id).select(
+        "_id author description excerpt genre image language page_count prize title category publish_date"
+      );
+      if (!book) {
+        return next(new HttpError("Book Not Found", 404));
+      }
+      else {
+        return res.status(200).json({
+          success: true,
+          message: "Successfully found Book",
+          data: book,
+        });
+      }
+    }
+  } catch (error) {
+    return next(new HttpError(error.message, 400));
+  }
 };
+
 
 // update a single book
 
@@ -187,52 +185,54 @@ export const updateBook = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
-    else{
+    else {
       const { userRole, userId } = req.userData;
 
-    if (userRole !== "seller") {
-      return next(new HttpError("Only sellers can update books", 403));
+      if (userRole !== "seller") {
+        return next(new HttpError("Only sellers can update books", 403));
+      }
+      else {
+
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+          return next(new HttpError("Invalid Book ID", 400));
+        }
+        else {
+
+          const updatedData = { ...req.body };
+
+
+          if (req.file) {
+            updatedData.image = req.file.path;
+          }
+          const date = new Date(updatedData.publish_date);
+          updatedData.publish_date = date;
+
+          updatedData.page_count = Number(updatedData.page_count);
+
+          updatedData.prize = Number(updatedData.prize);
+
+
+          const updatedBook = await Book.findByIdAndUpdate(
+            id,
+            { $set: updatedData }
+          );
+
+          if (!updatedBook) {
+            return next(new HttpError("Book not updated", 400));
+          }
+          else {
+            return res.status(200).json({
+              success: true,
+              message: "Successfully updated book",
+            });
+
+          }
+        }
+      }
     }
-    else{
 
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return next(new HttpError("Invalid Book ID", 400));
-    }
-    else{
-
-      const updatedData = { ...req.body };
-
-
-    if (req.file) {
-      updatedData.image = req.file.path;
-    }      
-      const date = new Date(updatedData.publish_date);
-      updatedData.publish_date = date;
-    
-      updatedData.page_count = Number(updatedData.page_count);
-    
-      updatedData.prize  = Number(updatedData.prize);
-      
-
-    const updatedBook = await Book.findByIdAndUpdate(
-      id,
-      { $set: updatedData } 
-    );
-
-    if (!updatedBook) {
-      return next(new HttpError("Book not updated", 400));
-    }
-    else{
-      return res.status(200).json({
-      success: true,
-      message: "Successfully updated book",
-    });
-
-    } }
-  }} 
-    
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
@@ -245,47 +245,43 @@ export const deleteBook = async (req, res, next) => {
     const { id } = req.params;
     const { userRole } = req.userData;
 
-    // Only seller or admin can delete
+
     if (userRole !== "seller" && userRole !== "admin") {
       return next(new HttpError("Only sellers and admin can delete books", 403));
     }
+    else {
 
-    // Fetch the book
-    const book = await Book.findById(id).populate("user"); // populate user if referenced
-    if (!book) {
-      return next(new HttpError("Book not found", 404));
+      const book = await Book.findById(id).populate("user");
+      if (!book) {
+        return next(new HttpError("Book not found", 404));
+      }
+      else {
+        book.is_deleted = true;
+        await book.save();
+
+        const user = await User.findById(book.user);
+        if (!user) {
+          return next(new HttpError("User not found", 404));
+        }
+
+
+        const subject = "Your book has been deleted";
+        const template = emailTemplates.delete_book_email;
+        const to = user.email
+        const context = {
+          received_by: user.firstName,
+          book_title: book.title,
+          book_author: book.author,
+          book_category: book.category,
+        };
+        sendDeleteBookEmail(to, subject, template, context);
+
+        return res.status(200).json({
+          success: true,
+          message: "Successfully deleted book and notified user",
+        });
+      }
     }
-
-    // Mark as deleted
-    book.is_deleted = true;
-    await book.save();
-
-    // Fetch user details
-    const user = await User.findById(book.user); // or book.user if populated
-    if (!user) {
-      return next(new HttpError("User not found", 404));
-    }
-
-    // Prepare email
-    const subject = "Your book has been deleted";
-    const template = emailTemplates.delete_book_email; 
-    const to = user.email
-    const context = {
-      received_by: user.firstName,
-      book_title: book.title,
-      book_author: book.author,
-      book_category: book.category,
-    };
-    
-
-    // Send email
-   sendDeleteBookEmail(to, subject, template, context);
-
-    return res.status(200).json({
-      success: true,
-      message: "Successfully deleted book and notified user",
-    });
-
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
@@ -294,25 +290,25 @@ export const deleteBook = async (req, res, next) => {
 
 // newly added books
 export const getNewlyAddedBooks = async (req, res, next) => {
-    try {
-        const books = await Book.find({ is_deleted: false })
-            .sort({ createdAt: -1 })
-            .limit(8);
+  try {
+    const books = await Book.find({ is_deleted: false })
+      .sort({ createdAt: -1 })
+      .limit(8);
 
-        if (books) {
-            return res.status(200).json({
-                success: true,
-                error: false,
-                message: "Newly added books fetched successfully",
-                data: books
-            });
-        }
-        else {
-            return next(new HttpError("No books Found", 404));
-        }
-    } catch (error) {
-        return next(new HttpError(error.message, 500));
+    if (books) {
+      return res.status(200).json({
+        success: true,
+        error: false,
+        message: "Newly added books fetched successfully",
+        data: books
+      });
     }
+    else {
+      return next(new HttpError("No books Found", 404));
+    }
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
 };
 
 
@@ -321,46 +317,50 @@ export const getNewlyAddedBooks = async (req, res, next) => {
 
 export const addReview = async (req, res, next) => {
   try {
-    const { rating, comment } = req.body;
+
     const { userRole, userId } = req.userData;
-    const { bookId } = req.params;
 
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can add a review", 403));
     }
+    else {
+      const { rating, comment } = req.body;
+      const { bookId } = req.params;
 
-    const book = await Book.findById(bookId);
-    if (!book) {
-      return next(new HttpError("No book found", 404));
+      const book = await Book.findById(bookId);
+      if (!book) {
+        return next(new HttpError("No book found", 404));
+      }
+      else {
+        let existingReview = book.reviews.find(
+          (r) => r.user.toString() === userId.toString()
+        );
+
+        if (existingReview) {
+
+          if (rating !== undefined) existingReview.rating = rating;
+          if (comment) existingReview.comment = comment;
+        } else {
+
+          book.reviews.push({
+            user: userId,
+            rating,
+            comment,
+          });
+        }
+
+        book.calculateRating();
+
+        await book.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Review added successfully",
+          data: book,
+        })
+      }
     }
 
-    let existingReview = book.reviews.find(
-      (r) => r.user.toString() === userId.toString()
-    );
-
-    if (existingReview) {
-    
-      if (rating !== undefined) existingReview.rating = rating;
-      if (comment) existingReview.comment = comment;
-    } else {
-      // create new review
-      book.reviews.push({
-        user: userId,
-        rating,
-        comment,
-      });
-    }
-
-    // recalculate avg rating
-    book.calculateRating();
-
-    await book.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Review added successfully",
-      data: book,
-    });
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }

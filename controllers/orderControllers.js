@@ -12,45 +12,42 @@ export const orderItems = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid User Input", 400));
     }
+    else {
+      const { userId, userRole } = req.userData;
 
-    const { userId, userRole } = req.userData;
+      if (userRole !== "customer") {
+        return next(new HttpError("Only customers can place orders", 403));
+      }
+      else {
+        const { items, address } = req.body;
+        const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        const totalAmount = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+        const newOrder = new Order({
+          user: userId,
+          items: items.map((item) => ({
+            book: item.book,
+            quantity: item.quantity,
+            orderedAt: new Date(),
+            price: item.price,
+          })),
+          address: address,
+          totalQty,
+          totalAmount,
+        });
 
-    if (userRole !== "customer") {
-      return next(new HttpError("Only customers can place orders", 403));
+        await newOrder.save();
+
+        res.status(201).json({
+          success: true,
+          message: "Order placed successfully",
+        });
+
+      }
     }
-
-    const { items, address } = req.body;
-
-    // --- Calculate totals ---
-    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
-
-    // --- Save order ---
-    const newOrder = new Order({
-      user: userId,
-      items: items.map((item) => ({
-        book: item.book,
-        quantity: item.quantity,
-        orderedAt: new Date(),
-        price: item.price,
-      })),
-      address: address,
-      totalQty,
-      totalAmount,
-    });
-
-    await newOrder.save();
-  
-    res.status(201).json({
-      success: true,
-      message: "Order placed successfully",
-    });
   } catch (error) {
     return next(new HttpError(error.message || "Order failed", 500));
   }
 };
-
-
 
 
 export const getUserOrders = async (req, res, next) => {
@@ -60,86 +57,81 @@ export const getUserOrders = async (req, res, next) => {
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can view orders", 403));
     }
+    else {
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.max(1, Number(req.query.limit) || 8);
+      const skip = (page - 1) * limit;
 
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.max(1, Number(req.query.limit) || 8);
-    const skip = (page - 1) * limit;
+      const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Convert userId safely into ObjectId
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+      const pipeline = [
+        { $match: { user: userObjectId } },
 
-    // Aggregation pipeline
-    const pipeline = [
-      { $match: { user: userObjectId } },
+        { $unwind: "$items" },
 
-      // Unwind items array → each item becomes one document
-      { $unwind: "$items" },
+        {
+          $lookup: {
+            from: "books",
+            localField: "items.book",
+            foreignField: "_id",
+            as: "bookDetails"
+          }
+        },
 
-      // Lookup book details
-      {
-        $lookup: {
-          from: "books",
-          localField: "items.book",
-          foreignField: "_id",
-          as: "bookDetails"
-        }
-      },
 
-      // Unwind bookDetails for cleaner structure
-      { $unwind: "$bookDetails" },
+        { $unwind: "$bookDetails" },
 
-      // Sort latest first
-      { $sort: { createdAt: -1 } },
 
-      // Pagination
-      { $skip: skip },
-      { $limit: limit },
+        { $sort: { createdAt: -1 } },
 
-      // Shape the response
-      {
-        $project: {
-          _id: 1,
-          createdAt: 1,
-          "items.quantity": 1,
-          "items.price": 1,
+        { $skip: skip },
+        { $limit: limit },
 
-          book: {
-            _id: "$bookDetails._id",
-            title: "$bookDetails.title",
-            author: "$bookDetails.author",
-            image: "$bookDetails.image",
-            price: "$bookDetails.price"
+
+        {
+          $project: {
+            _id: 1,
+            createdAt: 1,
+            "items.quantity": 1,
+            "items.price": 1,
+
+            book: {
+              _id: "$bookDetails._id",
+              title: "$bookDetails.title",
+              author: "$bookDetails.author",
+              image: "$bookDetails.image",
+              price: "$bookDetails.price"
+            }
           }
         }
-      }
-    ];
+      ];
 
-    // Fetch paginated order items
-    const orderItems = await Order.aggregate(pipeline);
+      const orderItems = await Order.aggregate(pipeline);
 
-    // Count total order items separately
-    const countPipeline = [
-      { $match: { user: userObjectId } },
-      { $unwind: "$items" },
-      { $count: "totalItems" }
-    ];
+      const countPipeline = [
+        { $match: { user: userObjectId } },
+        { $unwind: "$items" },
+        { $count: "totalItems" }
+      ];
 
-    const countResult = await Order.aggregate(countPipeline);
+      const countResult = await Order.aggregate(countPipeline);
 
-    const totalItems = countResult[0]?.totalItems || 0;
-    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const totalItems = countResult[0]?.totalItems || 0;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
 
-    return res.status(200).json({
-      message:
-        totalItems === 0
-          ? "No order items found"
-          : "Order items fetched successfully",
-      orderItems,
-      page,
-      limit,
-      totalPages,
-      totalItems
-    });
+      return res.status(200).json({
+        message:
+          totalItems === 0
+            ? "No order items found"
+            : "Order items fetched successfully",
+        orderItems,
+        page,
+        limit,
+        totalPages,
+        totalItems
+      });
+
+    }
 
   } catch (error) {
     return next(new HttpError(error.message || "Unable to fetch orders", 500));
@@ -156,57 +148,57 @@ export const getSellerOrders = async (req, res, next) => {
     if (userRole !== "seller") {
       return next(new HttpError("Only sellers can view orders for their books", 403));
     }
+    else {
+      const orders = await Order.find()
+        .populate({
+          path: "items.book",
+          model: "Book",
 
-    // Populate items.book -> populate book.user (seller) AND populate order.user (customer)
-    // Use .lean() to get plain objects for easier filtering and to improve performance
-    const orders = await Order.find()
-      .populate({
-        path: "items.book",
-        model: "Book",
-        // populate the book.owner/user (the seller) and select only a few fields
-        populate: {
+          populate: {
+            path: "user",
+            model: "User",
+            select: "firstName lastName email phone _id",
+          },
+        })
+        .populate({
           path: "user",
           model: "User",
           select: "firstName lastName email phone _id",
-        },
-      })
-      .populate({
-        path: "user", // the customer who placed the order
-        model: "User",
-        select: "firstName lastName email phone _id",
-      })
-      .sort({ createdAt: -1 })
-      .lean();
+        })
+        .sort({ createdAt: -1 })
+        .lean();
 
-    const sellerOrders = orders
-      .map((order) => {
-        // items that belong to this seller (book.user._id matches)
-        const sellerItems = (order.items || []).filter((item) => {
-          // defensive checks in case the controller didn't populate `book` or `book.user`
-          const book = item?.book;
-          const bookUserId = book?.user?._id ?? book?.user ?? null;
-          if (!bookUserId) {
-            // if we cannot determine the book owner, exclude the item to be safe
-            return false;
-          }
-          return String(bookUserId) === String(userId);
-        });
+      const sellerOrders = orders
+        .map((order) => {
 
-        // if no seller items, drop the order
-        if (!sellerItems.length) return null;
+          const sellerItems = (order.items || []).filter((item) => {
 
-        // Return a trimmed order object where items only contains the seller's items
-        return {
-          ...order,
-          items: sellerItems,
-        };
-      })
-      .filter(Boolean); // remove nulls
+            const bookUserId = book?.user?._id ?? book?.user ?? null;
+            if (!bookUserId) {
 
-    return res.status(200).json({
-      message: "Seller orders fetched successfully",
-      orders: sellerOrders,
-    });
+              return false;
+            }
+            return String(bookUserId) === String(userId);
+          });
+
+
+          if (!sellerItems.length) return null;
+
+
+          return {
+            ...order,
+            items: sellerItems,
+          };
+        })
+        .filter(Boolean);
+
+      return res.status(200).json({
+        message: "Seller orders fetched successfully",
+        orders: sellerOrders,
+      });
+
+    }
+
   } catch (error) {
     console.error("getSellerOrders error:", error);
     return next(new HttpError(error.message || "Unable to fetch seller orders", 500));
@@ -218,101 +210,98 @@ export const getSellerOrders = async (req, res, next) => {
 export const updateOrderItemStatus = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
-    const { orderId, itemId } = req.params;
-    const { action } = req.body; 
-    console.log(orderId)
-    console.log(itemId)
-    console.log(req.params)
-    console.log(req.body)
-    if (!orderId || !itemId || !action) {
-      return next(new HttpError("Order ID, Item ID and new status are required", 400));
-    }
 
-    // Fetch order
-    const order = await Order.findById(orderId).populate("items.book");
-
-    if (!order) return next(new HttpError("Order not found", 404));
-
-    // --- ROLE VALIDATION ---
-
-    if (userRole === "customer") {
-      // Customer must own the order
-      if (order.user.toString() !== userId) {
-        return next(new HttpError("You are not allowed to modify this order", 403));
-      }
-
-      // Customers can only cancel
-      if (action !== "cancelled") {
-        return next(new HttpError("Customers can only cancel items", 403));
-      }
-    }
-
-    if (userRole === "seller") {
-      // Ensure this item belongs to this seller
-      const itemCheck = order.items.id(itemId);
-      if (itemCheck?.book?.user.toString() !== userId) {
-        return next(new HttpError("This item does not belong to you", 403));
-      }
-
-      // Sellers cannot mark "cancelled" after dispatch/deliver
-      if (action === "cancelled") {
-        if (["dispatched", "delivered"].includes(itemCheck.action)) {
-          return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
-        }
-      }
-    }
-
-    // Find specific item
-    const item = order.items.id(itemId);
-    if (!item) return next(new HttpError("Order item not found", 404));
-
-    // --- BLOCK invalid transitions ---
-    if (item.action === "delivered") {
-      return next(new HttpError("Delivered item status cannot be changed", 400));
-    }
-
-    if (item.action === "cancelled") {
-      return next(new HttpError("This item is already cancelled", 400));
-    }
-
-    // --- APPLY STATUS CHANGE ---
-    item.status = action;
-
-    if (action === "cancelled") item.cancelledAt = new Date();
-    if (action === "dispatched") item.dispatchedAt = new Date();
-    if (action === "delivered") item.deliveredAt = new Date();
-
-    // --- UPDATE ORDER-LEVEL STATUS ---
-    const statuses = order.items.map(i => i.action);
-
-    if (statuses.every(s => s === "cancelled")) {
-      order.status = "cancelled";
-    }
-    else if (statuses.every(s => s === "delivered")) {
-      order.status = "delivered";
-    }
-    else if (statuses.every(s => s === "dispatched" || s === "delivered")) {
-      order.status = "dispatched";
-    }
-    else if (statuses.some(s => s === "cancelled")) {
-      order.status = "partially_cancelled";
-    }
-    else if (statuses.some(s => s === "dispatched")) {
-      order.status = "partially_dispatched";
-    }
-    else if (statuses.some(s => s === "delivered")) {
-      order.status = "partially_delivered";
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customer can update quantity", 403));
     }
     else {
-      order.status = "ordered";
+      const { orderId, itemId } = req.params;
+      const { action } = req.body;
+      if (!orderId || !itemId || !action) {
+        return next(new HttpError("Order ID, Item ID and new status are required", 400));
+      }
+      else {
+        r
+        const order = await Order.findById(orderId).populate("items.book");
+
+        if (!order) return next(new HttpError("Order not found", 404));
+
+        if (userRole === "customer") {
+
+          if (order.user.toString() !== userId) {
+            return next(new HttpError("You are not allowed to modify this order", 403));
+          }
+
+
+          if (action !== "cancelled") {
+            return next(new HttpError("Customers can only cancel items", 403));
+          }
+        }
+
+        if (userRole === "seller") {
+
+          const itemCheck = order.items.id(itemId);
+          if (itemCheck?.book?.user.toString() !== userId) {
+            return next(new HttpError("This item does not belong to you", 403));
+          }
+
+          if (action === "cancelled") {
+            if (["dispatched", "delivered"].includes(itemCheck.action)) {
+              return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
+            }
+          }
+        }
+
+        const item = order.items.id(itemId);
+        if (!item) return next(new HttpError("Order item not found", 404));
+
+        if (item.action === "delivered") {
+          return next(new HttpError("Delivered item status cannot be changed", 400));
+        }
+
+        if (item.action === "cancelled") {
+          return next(new HttpError("This item is already cancelled", 400));
+        }
+
+        item.status = action;
+
+        if (action === "cancelled") item.cancelledAt = new Date();
+        if (action === "dispatched") item.dispatchedAt = new Date();
+        if (action === "delivered") item.deliveredAt = new Date();
+
+
+        const statuses = order.items.map(i => i.action);
+
+        if (statuses.every(s => s === "cancelled")) {
+          order.status = "cancelled";
+        }
+        else if (statuses.every(s => s === "delivered")) {
+          order.status = "delivered";
+        }
+        else if (statuses.every(s => s === "dispatched" || s === "delivered")) {
+          order.status = "dispatched";
+        }
+        else if (statuses.some(s => s === "cancelled")) {
+          order.status = "partially_cancelled";
+        }
+        else if (statuses.some(s => s === "dispatched")) {
+          order.status = "partially_dispatched";
+        }
+        else if (statuses.some(s => s === "delivered")) {
+          order.status = "partially_delivered";
+        }
+        else {
+          order.status = "ordered";
+        }
+
+        await order.save();
+
+        return res.status(200).json({
+          message: "Order item status updated successfully",
+          order,
+        });
+      }
     }
-
-    await order.save();
-
-    return res.status(200).json({
-      message: "Order item status updated successfully",
-      order,
-    });
 
   } catch (error) {
     return next(
@@ -327,70 +316,70 @@ export const updateOrderItemStatus = async (req, res, next) => {
 export const getSellerOrderDetails = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
-    const { orderId } = req.params;
 
     if (userRole !== "seller") {
       return next(new HttpError("Only sellers can view order details", 403));
     }
+    else {
+      const { orderId } = req.params;
 
-    if (!orderId) {
-      return next(new HttpError("Order ID is required", 400));
+
+      if (!orderId) {
+        return next(new HttpError("Order ID is required", 400));
+      }
+      else {
+        const order = await Order.findById(orderId)
+          .populate({
+            path: "items.book",
+            model: "Book",
+            populate: { path: "user", model: "User" },
+          })
+          .populate("user", "firstName lastName email fullPhone");
+
+        if (!order) {
+          return next(new HttpError("Order not found", 404));
+        }
+        else {
+          const sellerItems = order.items.filter(
+            (item) => item.book?.user?._id?.toString() === userId
+          );
+
+          if (sellerItems.length === 0) {
+            return next(
+              new HttpError("You do not have any products in this order", 403)
+            );
+          }
+
+          return res.status(200).json({
+            message: "Order details fetched successfully",
+            order: {
+              _id: order._id,
+
+
+              customer: {
+                name: `${order.user.firstName} ${order.user.lastName}`,
+                email: order.user.email,
+                phone: order.user.fullPhone,
+              },
+
+              address: order.address,
+              paymentMethod: order.paymentMethod,
+              paymentStatus: order.paymentStatus,
+              status: order.status,
+              createdAt: order.createdAt,
+              items: sellerItems,
+            },
+          });
+        }
+      }
     }
 
-    // Fetch order + populate customer + populate seller of each book
-    const order = await Order.findById(orderId)
-      .populate({
-        path: "items.book",
-        model: "Book",
-        populate: { path: "user", model: "User" }, // Seller info
-      })
-      .populate("user", "firstName lastName email fullPhone"); // ⭐ Customer info
-
-    if (!order) {
-      return next(new HttpError("Order not found", 404));
-    }
-
-    // Filter seller's items
-    const sellerItems = order.items.filter(
-      (item) => item.book?.user?._id?.toString() === userId
-    );
-
-    if (sellerItems.length === 0) {
-      return next(
-        new HttpError("You do not have any products in this order", 403)
-      );
-    }
-
-    return res.status(200).json({
-      message: "Order details fetched successfully",
-      order: {
-        _id: order._id,
-
-        // 🟢 Proper customer details
-        customer: {
-          name: `${order.user.firstName} ${order.user.lastName}`,
-          email: order.user.email,
-          phone: order.user.fullPhone,
-        },
-
-        address: order.address,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        status: order.status,
-        createdAt: order.createdAt,
-        items: sellerItems,
-      },
-    });
   } catch (error) {
     return next(
       new HttpError(error.message || "Unable to fetch order details", 500)
     );
   }
 };
-
-
-
-
 
 
 export const getSavedAddress = async (req, res, next) => {
@@ -400,30 +389,28 @@ export const getSavedAddress = async (req, res, next) => {
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can view addresses", 403));
     }
+    else {
+      const addresses = await Address.find({ user: userId }).sort({ createdAt: -1 });
 
-    // Fetch all addresses for the user, sorted by latest first
-    const addresses = await Address.find({ user: userId }).sort({ createdAt: -1 });
-
-    if (!addresses || addresses.length === 0) {
-      return next(new HttpError("No addresses found", 404));
+      if (!addresses || addresses.length === 0) {
+        return next(new HttpError("No addresses found", 404));
+      }
+      else {
+        return res.status(200).json({
+          success: true,
+          message: "Addresses fetched successfully",
+          addresses,
+        });
+      }
     }
-
-    return res.status(200).json({
-      success: true,
-      message: "Addresses fetched successfully",
-      addresses, 
-    });
-
   } catch (err) {
-    console.error(err);
+
     return next(new HttpError(err.message || "Failed to fetch addresses", 500));
   }
 };
 
 
 // upadateaddress
-
-
 export const updateAddress = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
@@ -432,67 +419,68 @@ export const updateAddress = async (req, res, next) => {
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can update address", 403));
     }
-    if (!addressId) {
-      return next(new HttpError("Address ID is required for updating", 400));
-    }
-    if (!updatedAddress || typeof updatedAddress !== "object" || Object.keys(updatedAddress).length === 0) {
-      return next(new HttpError("Updated address data is required", 400));
-    }
-
-    // 1) Find (or create) the Address doc for this user
-    let userAddresses = await Address.findOne({ user: userId });
-
-    // If there's no address doc for this user, optionally create it.
-    // (We create so frontend can update newly created address id flow; but you may choose to return 404 instead.)
-    if (!userAddresses) {
-      userAddresses = new Address({ user: userId, addresses: [] });
-    }
-
-    // 2) Find the address subdocument by _id in addresses[]
-    const addrIndex = userAddresses.addresses.findIndex(a => a._id && a._id.toString() === addressId.toString());
-    if (addrIndex === -1) {
-      return next(new HttpError("Address not found for this user", 404));
-    }
-
-    // Merge only allowed fields (avoid writing unexpected keys)
-    const allowedFields = ["fullName", "phone", "addressLine1", "addressLine2", "city", "state", "pinCode"];
-    for (const key of allowedFields) {
-      if (Object.prototype.hasOwnProperty.call(updatedAddress, key)) {
-        userAddresses.addresses[addrIndex][key] = updatedAddress[key];
+    else {
+      if (!addressId) {
+        return next(new HttpError("Address ID is required for updating", 400));
       }
-    }
-
-    // markModified not needed for direct subdoc mutation, but safe:
-    userAddresses.markModified(`addresses.${addrIndex}`);
-    await userAddresses.save();
-
-    // 3) Also update Order documents that have an embedded address subdoc with the same _id
-    // (This keeps order snapshots consistent.)
-    const ordersWithAddress = await Order.find({ "address._id": addressId });
-
-    if (Array.isArray(ordersWithAddress) && ordersWithAddress.length > 0) {
-      for (const order of ordersWithAddress) {
-        const idx = order.address.findIndex(a => a._id && a._id.toString() === addressId.toString());
-        if (idx !== -1) {
-          // update permitted fields on the order snapshot too
-          for (const key of allowedFields) {
-            if (Object.prototype.hasOwnProperty.call(updatedAddress, key)) {
-              order.address[idx][key] = updatedAddress[key];
-            }
-          }
-          order.markModified(`address.${idx}`);
-          await order.save();
+      else {
+        if (!updatedAddress || typeof updatedAddress !== "object" || Object.keys(updatedAddress).length === 0) {
+          return next(new HttpError("Updated address data is required", 400));
         }
+        else {
+          let userAddresses = await Address.findOne({ user: userId });
+
+
+          if (!userAddresses) {
+            userAddresses = new Address({ user: userId, addresses: [] });
+          }
+          else {
+            const addrIndex = userAddresses.addresses.findIndex(a => a._id && a._id.toString() === addressId.toString());
+            if (addrIndex === -1) {
+              return next(new HttpError("Address not found for this user", 404));
+            }
+
+            const allowedFields = ["fullName", "phone", "addressLine1", "addressLine2", "city", "state", "pinCode"];
+            for (const key of allowedFields) {
+              if (Object.prototype.hasOwnProperty.call(updatedAddress, key)) {
+                userAddresses.addresses[addrIndex][key] = updatedAddress[key];
+              }
+            }
+
+            userAddresses.markModified(`addresses.${addrIndex}`);
+            await userAddresses.save();
+
+            const ordersWithAddress = await Order.find({ "address._id": addressId });
+
+            if (Array.isArray(ordersWithAddress) && ordersWithAddress.length > 0) {
+              for (const order of ordersWithAddress) {
+                const idx = order.address.findIndex(a => a._id && a._id.toString() === addressId.toString());
+                if (idx !== -1) {
+
+                  for (const key of allowedFields) {
+                    if (Object.prototype.hasOwnProperty.call(updatedAddress, key)) {
+                      order.address[idx][key] = updatedAddress[key];
+                    }
+                  }
+                  order.markModified(`address.${idx}`);
+                  await order.save();
+                }
+              }
+            }
+            const refreshed = await Address.findOne({ user: userId }).select("addresses -_id");
+            return res.status(200).json({
+              success: true,
+              message: "Address updated successfully",
+              addresses: refreshed ? refreshed.addresses : [],
+            });
+          }
+
+        }
+
       }
+
     }
 
-    // 4) Return the updated addresses array from the Address collection
-    const refreshed = await Address.findOne({ user: userId }).select("addresses -_id");
-    return res.status(200).json({
-      success: true,
-      message: "Address updated successfully",
-      addresses: refreshed ? refreshed.addresses : [],
-    });
   } catch (err) {
     console.error("updateAddress error:", err);
     if (err.name === "ValidationError") {
@@ -503,72 +491,39 @@ export const updateAddress = async (req, res, next) => {
 };
 
 
- // POST /api/orders/address
+
 export const addAddress = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
-
-    // Accept several possible shapes for compatibility
     const updatedAddress =
       req.body.updatedAddress ?? req.body.newAddress ?? req.body;
 
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can add address", 403));
     }
+    else {
+      if (!updatedAddress || typeof updatedAddress !== "object" || Object.keys(updatedAddress).length === 0) {
+        return next(new HttpError("Address data is required (received empty payload)", 400));
+      }
+      else {
+        const { fullName, phone, addressLine1, addressLine2, city, state, pinCode } = updatedAddress;
+        if (!fullName || !phone || !addressLine1) {
+          return next(new HttpError("fullName, phone and addressLine1 are required", 400));
+        }
 
-    if (!updatedAddress || typeof updatedAddress !== "object" || Object.keys(updatedAddress).length === 0) {
-      return next(new HttpError("Address data is required (received empty payload)", 400));
-    }
+        let addressDoc = await Address.findOne({ user: userId })
 
-    // Basic required fields validation (server-side)
-    const { fullName, phone, addressLine1, addressLine2, city, state, pinCode } = updatedAddress;
-    if (!fullName || !phone || !addressLine1) {
-      return next(new HttpError("fullName, phone and addressLine1 are required", 400));
-    }
-
-    // --- 1) Save to Address collection (per-user document with addresses array) ---
-    // Try to find existing Address document for this user
-    let addressDoc = await Address.findOne({ user: userId });
-
-    // If not found, create it
-    if (!addressDoc) {
-      addressDoc = new Address({
-        user: userId,
-        addresses: [], // initialize as empty array
-      });
-    }
-
-    // Optional: enforce max 3 addresses per user
-    const maxAddresses = 3;
-    if (Array.isArray(addressDoc.addresses) && addressDoc.addresses.length >= maxAddresses) {
-      return next(new HttpError(`You can save up to ${maxAddresses} addresses only`, 400));
-    }
-
-    // Push the new address into the addresses array
-    addressDoc.addresses.push({
-      fullName,
-      phone,
-      addressLine1,
-      addressLine2,
-      city,
-      state,
-      pinCode,
-    });
-
-    // Save Address doc
-    await addressDoc.save();
-
-    // Grab the newly added address (it's the last element)
-    const addedAddress = addressDoc.addresses[addressDoc.addresses.length - 1];
-
-    // --- 2) (Optional) also save to latest Order.address array for snapshot parity ---
-    // If you want the Order collection to keep a snapshot (so older orders still have addresses),
-    // push to the latest order's address array as you did before. If you DON'T want this, you can skip.
-    try {
-      const latestOrder = await Order.findOne({ user: userId }).sort({ createdAt: -1 });
-      if (latestOrder) {
-        // push the same address snapshot into the order.address array
-        latestOrder.address.push({
+        if (!addressDoc) {
+          addressDoc = new Address({
+            user: userId,
+            addresses: [],
+          });
+        }
+        const maxAddresses = 3;
+        if (Array.isArray(addressDoc.addresses) && addressDoc.addresses.length >= maxAddresses) {
+          return next(new HttpError(`You can save up to ${maxAddresses} addresses only`, 400));
+        }
+        addressDoc.addresses.push({
           fullName,
           phone,
           addressLine1,
@@ -577,22 +532,39 @@ export const addAddress = async (req, res, next) => {
           state,
           pinCode,
         });
-        await latestOrder.save();
-      }
-    } catch (orderErr) {
-      // don't block the main response if updating order snapshot fails; log instead
-      console.error("Warning: failed to also push address into Order.address snapshot:", orderErr);
-    }
 
-    // Respond with the addresses array from Address collection (clean shape)
-    return res.status(201).json({
-      success: true,
-      message: "Address added successfully",
-      addresses: addressDoc.addresses, // array of address subdocuments
-      addedAddress,
-    });
+        await addressDoc.save();
+        const addedAddress = addressDoc.addresses[addressDoc.addresses.length - 1];
+        try {
+          const latestOrder = await Order.findOne({ user: userId }).sort({ createdAt: -1 });
+          if (latestOrder) {
+
+            latestOrder.address.push({
+              fullName,
+              phone,
+              addressLine1,
+              addressLine2,
+              city,
+              state,
+              pinCode,
+            });
+            await latestOrder.save();
+          }
+        } catch (orderErr) {
+
+          console.error("Warning: failed to also push address into Order.address snapshot:", orderErr);
+        }
+
+        return res.status(201).json({
+          success: true,
+          message: "Address added successfully",
+          addresses: addressDoc.addresses,
+          addedAddress,
+        });
+      }
+    }
   } catch (err) {
-    console.error("addAddress error:", err);
+
     if (err.name === "ValidationError") {
       return next(new HttpError(err.message || "Validation failed", 400));
     }
@@ -601,48 +573,43 @@ export const addAddress = async (req, res, next) => {
 };
 
 
-
-
 // deleteaddress
-
 export const deleteAddress = async (req, res, next) => {
-  const { id } = req.params;
-  console.log(id)
-  const { userId, userRole } = req.userData;
-
-  if (userRole !== "customer") {
-    return next(new HttpError("Only customers can delete addresses", 403));
-  }
-
-  if (!id) {
-    return next(new HttpError("Address ID is required", 400));
-  }
-
   try {
-    // Find the address document for this user
-    const userAddressDoc = await Address.findOne({ user: userId });
-    if (!userAddressDoc) {
-      return next(new HttpError("Address document not found for this user", 404));
+    const { id } = req.params;
+    const { userId, userRole } = req.userData;
+    if (userRole !== "customer") {
+      return next(new HttpError("Only customers can delete addresses", 403));
     }
-
-    // Filter out the address to delete
-    const initialLength = userAddressDoc.addresses.length;
-    userAddressDoc.addresses = userAddressDoc.addresses.filter(
-      (addr) => addr._id.toString() !== id
-    );
-
-    if (userAddressDoc.addresses.length === initialLength) {
-      return next(new HttpError("Address not found", 404));
+    if (!id) {
+      return next(new HttpError("Address ID is required", 400));
     }
+    else {
+      const userAddressDoc = await Address.findOne({ user: userId });
+      if (!userAddressDoc) {
+        return next(new HttpError("Address document not found for this user", 404));
+      }
+      else {
+        const initialLength = userAddressDoc.addresses.length;
+        userAddressDoc.addresses = userAddressDoc.addresses.filter(
+          (addr) => addr._id.toString() !== id
+        );
 
-    await userAddressDoc.save();
+        if (userAddressDoc.addresses.length === initialLength) {
+          return next(new HttpError("Address not found", 404));
+        }
 
-    res.status(200).json({
-      success: true,
-      message: "Address deleted successfully",
-      addresses: userAddressDoc.addresses, // optional: return updated addresses
-    });
-  } catch (err) {
+        await userAddressDoc.save();
+
+        res.status(200).json({
+          success: true,
+          message: "Address deleted successfully",
+          addresses: userAddressDoc.addresses,
+        });
+      }
+    }
+  }
+  catch (err) {
     console.error("Delete address error:", err);
     next(new HttpError(err.message || "Failed to delete address", 500));
   }

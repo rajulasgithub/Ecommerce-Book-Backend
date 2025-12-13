@@ -1,5 +1,5 @@
 import express from 'express'
-import {userRegister, userLogin, updateUserProfile,getSellerStats, getProfile, getHomeBooks } from '../controllers/authController.js'
+import { userRegister, userLogin, updateUserProfile, getSellerStats, getProfile, getHomeBooks } from '../controllers/authController.js'
 import { check } from 'express-validator'
 import userAuthCheck from '../middleware/authCheck.js';
 import upload from '../middleware/fileUpload.js';
@@ -7,8 +7,7 @@ import upload from '../middleware/fileUpload.js';
 
 const authRoutes = express.Router()
 
-
-authRoutes.get("/gethomebooks",getHomeBooks);
+authRoutes.get("/gethomebooks", getHomeBooks);
 
 authRoutes.post(
   "/register",
@@ -38,7 +37,7 @@ authRoutes.post(
       .withMessage("Phone number is required")
       .isNumeric()
       .withMessage("Phone must contain only numbers")
-      .isLength({ min: 5, max: 12 }) 
+      .isLength({ min: 5, max: 12 })
       .withMessage("Phone number length is invalid"),
 
     check("email")
@@ -65,7 +64,7 @@ authRoutes.post(
     check("role")
       .notEmpty()
       .withMessage("Role is required")
-      .isIn(["customer", "seller","admin"])
+      .isIn(["customer", "seller", "admin"])
       .withMessage("Invalid role type"),
   ],
   userRegister
@@ -73,15 +72,15 @@ authRoutes.post(
 
 
 authRoutes.post('/login', [
-    check("email").
-      notEmpty().
-      withMessage("Email is required")
-      .isEmail().withMessage("Invalid email format"),
+  check("email").
+    notEmpty().
+    withMessage("Email is required")
+    .isEmail().withMessage("Invalid email format"),
 
-    check("password").
-      notEmpty().
-      withMessage("Password is required")
-], userLogin )
+  check("password").
+    notEmpty().
+    withMessage("Password is required")
+], userLogin)
 
 
 
@@ -94,35 +93,23 @@ authRoutes.patch(
     check("firstname").optional().isString().withMessage("Invalid lastname"),
     check("lastname").optional().isString().withMessage("Invalid lastname"),
     check("email").optional().isEmail().withMessage("Invalid email"),
-  check("phone")
-  .optional()
-  .custom((value) => {
-    const cleaned = value.replace(/\s/g, "");
-    const regex = /^\+?[0-9]{10,15}$/;
-    if (!regex.test(cleaned)) {
-      throw new Error("Enter a valid phone number with country code");
-    }
-    return true;
-  }),
+    check("phone")
+      .optional()
+      .custom((value) => {
+        const cleaned = value.replace(/\s/g, "");
+        const regex = /^\+?[0-9]{10,15}$/;
+        if (!regex.test(cleaned)) {
+          throw new Error("Enter a valid phone number with country code");
+        }
+        return true;
+      }),
     check("bio").optional().isString(),
   ],
   updateUserProfile
 );
 
 authRoutes.get("/profile", getProfile);
-authRoutes.get("/getsellerstats",getSellerStats);
+authRoutes.get("/getsellerstats", getSellerStats);
 
-
-  
-
-
-
-
-
-// authRoutes.post('/send-otp',[ check("email").notEmpty().withMessage("Email is required").isEmail().withMessage("Invalid email format"),], sendOtp )
-// authRoutes.post('/verify-otp',[ check("otp").notEmpty().withMessage("otp is required")], verifyOtp )
-// authRoutes.post('/reset-password',[ check("password").notEmpty().withMessage("password is required"),
-//     check("email").notEmpty().withMessage("email is required"),
-//     check("otp").notEmpty().withMessage("otp is required")],resetPassword )
 
 export default authRoutes       

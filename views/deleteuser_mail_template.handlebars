@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{subject}}</title>
   <style>
     body {
@@ -11,22 +12,26 @@
       margin: 0;
       padding: 0;
     }
+
     .container {
       max-width: 600px;
       margin: 20px auto;
       background-color: #ffffff;
       padding: 30px;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
     h1 {
       color: #c57a45;
     }
+
     p {
       font-size: 16px;
       color: #333333;
       line-height: 1.5;
     }
+
     .button {
       display: inline-block;
       padding: 10px 20px;
@@ -36,6 +41,7 @@
       border-radius: 5px;
       margin-top: 20px;
     }
+
     .footer {
       margin-top: 30px;
       font-size: 12px;
@@ -44,32 +50,33 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     {{#if subject}}
-      <h2>{{subject}}</h2>
+    <h2>{{subject}}</h2>
     {{/if}}
 
     {{#if name}}
-      <p>Hello {{name}},</p>
+    <p>Hello {{name}},</p>
     {{/if}}
 
     {{#if message}}
-      <p>{{message}}</p>
+    <p>{{message}}</p>
     {{/if}}
 
     {{#if reason}}
-      <p><strong>Reason:</strong> {{reason}}</p>
+    <p><strong>Reason:</strong> {{reason}}</p>
     {{/if}}
 
     {{#if deletionDate}}
-      <p><strong>Deletion Date:</strong> {{deletionDate}}</p>
+    <p><strong>Deletion Date:</strong> {{deletionDate}}</p>
     {{/if}}
 
     {{#if supportLink}}
-      <p>If you have any questions, please contact us: 
-        <a href="{{supportLink}}">Support</a>
-      </p>
+    <p>If you have any questions, please contact us:
+      <a href="{{supportLink}}">Support</a>
+    </p>
     {{/if}}
 
     <div class="footer">
@@ -77,4 +84,5 @@
     </div>
   </div>
 </body>
+
 </html>

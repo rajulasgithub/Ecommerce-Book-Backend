@@ -25,10 +25,10 @@ const orderSchema = new mongoose.Schema(
           default: Date.now,
         },
         price: Number,
-          
+
         status: {
           type: String,
-          enum: ["ordered", "cancelled", "shipped", "delivered","dispatched"],
+          enum: ["ordered", "cancelled", "shipped", "delivered", "dispatched"],
           default: "ordered",
         },
         cancelledAt: {
@@ -36,7 +36,7 @@ const orderSchema = new mongoose.Schema(
           default: null,
         },
       },
-      
+
     ],
 
     totalQty: {
@@ -49,30 +49,23 @@ const orderSchema = new mongoose.Schema(
       default: 0,
     },
 
-   address: 
-  {
-    fullName: { type: String, required: true },
-    phone: { type: String, required: true },
-    addressLine1: { type: String, required: true },
-    addressLine2: { type: String },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    pinCode: { type: String, required: true },
-  }
-,
+    address:
+    {
+      fullName: { type: String, required: true },
+      phone: { type: String, required: true },
+      addressLine1: { type: String, required: true },
+      addressLine2: { type: String },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      pinCode: { type: String, required: true },
+    }
+    ,
 
     paymentMethod: {
       type: String,
       enum: ["upi", "card", "netbanking", "cod"],
       default: "cod",
     },
-
-    // status: {
-    //   type: String,
-    //   enum: ["ordered", "cancelled", "delivered"],
-    //   default: "ordered",
-    // },
-    
     cancelledAt: {
       type: Date,
       default: null,

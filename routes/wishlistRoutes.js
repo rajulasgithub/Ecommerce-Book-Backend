@@ -7,13 +7,13 @@ const wishlistRoute = expres.Router()
 
 wishlistRoute.use(userAuthCheck)
 
-wishlistRoute.post('/addtowishlist/:id',addToWishList)
+wishlistRoute.post('/addtowishlist/:id', addToWishList)
 
-wishlistRoute.get('/getallwishlistitem',getAllWishList)
+wishlistRoute.get('/getallwishlistitem', getAllWishList)
 
-wishlistRoute.delete('/removewishlistitem/:id',removeWishList)
+wishlistRoute.delete('/removewishlistitem/:id', removeWishList)
 
-wishlistRoute.delete('/clearwishlist',clearWishList)
+wishlistRoute.delete('/clearwishlist', clearWishList)
 
 
 export default wishlistRoute

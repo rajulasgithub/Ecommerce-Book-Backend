@@ -1,13 +1,12 @@
 import express from 'express'
-import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook ,getNewlyAddedBooks, addReview} from '../controllers/bookController.js'
+import { listBooks, getSingleBook, addNewBook, updateBook, deleteBook, getNewlyAddedBooks, addReview } from '../controllers/bookController.js'
 import userAuthCheck from '../middleware/authCheck.js'
-import {  check, param} from 'express-validator'
+import { check, param } from 'express-validator'
 import upload from '../middleware/fileUpload.js'
 import { adminCheck } from '../middleware/adminAuth.js'
 
+
 const bookRoutes = express.Router()
-
-
 
 bookRoutes.get('/viewbook/:id', getSingleBook)
 
@@ -15,29 +14,29 @@ bookRoutes.get('/newlyaddedbook', getNewlyAddedBooks)
 
 bookRoutes.use(userAuthCheck)
 
-bookRoutes.patch('/deletetbook/:id',adminCheck,[
-          param("id")
-        .isMongoId()
+bookRoutes.patch('/deletetbook/:id', adminCheck, [
+  param("id")
+    .isMongoId()
 ], deleteBook)
 
-bookRoutes.get('/viewbooks',[
-    check("page").
-        isInt({ min: 1 }).
-        withMessage("Page must be a positive number"),
+bookRoutes.get('/viewbooks', [
+  check("page").
+    isInt({ min: 1 }).
+    withMessage("Page must be a positive number"),
 
-    check("limit").
-        isInt({ min: 1, max: 100 }).
-        withMessage("Limit must be between 1 and 100"),
+  check("limit").
+    isInt({ min: 1, max: 100 }).
+    withMessage("Limit must be between 1 and 100"),
 
-    check("search").
-        optional().
-        trim()  
-          
+  check("search").
+    optional().
+    trim()
+
 ], listBooks)
 
 bookRoutes.post(
   "/addbook",
-  upload.single("image"), 
+  upload.single("image"),
   [
     check("title")
       .trim()
@@ -52,8 +51,8 @@ bookRoutes.post(
       .isLength({ min: 20 })
       .withMessage("Description must be at least 20 characters")
       .isLength({ max: 1000 })
-      .withMessage("Description cannot exceed 1000 characters"),   
-      
+      .withMessage("Description cannot exceed 1000 characters"),
+
     check("excerpt")
       .trim()
       .notEmpty()
@@ -62,7 +61,7 @@ bookRoutes.post(
       .withMessage("Excerpt must be at least 10 characters")
       .isLength({ max: 1000 })
       .withMessage("Excerpt cannot exceed 1000 characters"),
-      
+
     check("page_count")
       .notEmpty()
       .withMessage("Page count is required")
@@ -104,78 +103,73 @@ bookRoutes.post(
 
 
 
-bookRoutes.patch('/updatebook/:id',upload.single('image'),[
-    check("title").
-        trim().
-        notEmpty().
-        withMessage("Title cannot be empty").
-        isLength({ min: 2 }).
-        withMessage("Title must be at least 2 characters"),
+bookRoutes.patch('/updatebook/:id', upload.single('image'), [
+  check("title").
+    trim().
+    notEmpty().
+    withMessage("Title cannot be empty").
+    isLength({ min: 2 }).
+    withMessage("Title must be at least 2 characters"),
 
-    check("description").
-        trim().
-        notEmpty().
-        withMessage("Description cannot be empty").
-        isLength({ min: 20 }).
-        withMessage("Description must be at least 20 characters"),
+  check("description").
+    trim().
+    notEmpty().
+    withMessage("Description cannot be empty").
+    isLength({ min: 20 }).
+    withMessage("Description must be at least 20 characters"),
 
-    check("excerpt").
-        trim().
-        notEmpty().
-        withMessage("Excerpt cannot be empty").
-        isLength({ min: 10 }).
-        withMessage("Excerpt must be at least 10 characters"),
+  check("excerpt").
+    trim().
+    notEmpty().
+    withMessage("Excerpt cannot be empty").
+    isLength({ min: 10 }).
+    withMessage("Excerpt must be at least 10 characters"),
 
-    check("page_count").
-        notEmpty().
-        withMessage("Page count cannot be empty").
-        isInt({ min: 1 }).
-        withMessage("Page count must be a positive number"),
+  check("page_count").
+    notEmpty().
+    withMessage("Page count cannot be empty").
+    isInt({ min: 1 }).
+    withMessage("Page count must be a positive number"),
 
-    check("publish_date").
-        notEmpty().
-        withMessage("Publish date cannot be empty").
-        isISO8601().
-        withMessage("Publish date must be a valid date"),
+  check("publish_date").
+    notEmpty().
+    withMessage("Publish date cannot be empty").
+    isISO8601().
+    withMessage("Publish date must be a valid date"),
 
-    check("author").
-        trim().
-        notEmpty().
-        withMessage("Author cannot be empty").
-        isLength({ min: 3 }).
-        withMessage("Author name must be at least 3 characters"),
+  check("author").
+    trim().
+    notEmpty().
+    withMessage("Author cannot be empty").
+    isLength({ min: 3 }).
+    withMessage("Author name must be at least 3 characters"),
 
-    check("genre").
-        trim().
-        notEmpty().
-        withMessage("Genre cannot be empty"),
+  check("genre").
+    trim().
+    notEmpty().
+    withMessage("Genre cannot be empty"),
 
-    check("language"). 
-        trim().
-        notEmpty().
-        withMessage("Language cannot be empty"),
+  check("language").
+    trim().
+    notEmpty().
+    withMessage("Language cannot be empty"),
 
-    check("prize").
-        notEmpty().
-        withMessage("Price cannot be empty").
-        isFloat({ min: 1 }).
-        withMessage("Price must be a positive number"),
+  check("prize").
+    notEmpty().
+    withMessage("Price cannot be empty").
+    isFloat({ min: 1 }).
+    withMessage("Price must be a positive number"),
 
-    check("category").
-        trim().
-        notEmpty().
-        withMessage("Category cannot be empty").
-        isIn(["Academic","Fiction","Non-Fiction", "Comics","Children","Poetry"]).
-        withMessage("Invalid category selected")
+  check("category").
+    trim().
+    notEmpty().
+    withMessage("Category cannot be empty").
+    isIn(["Academic", "Fiction", "Non-Fiction", "Comics", "Children", "Poetry"]).
+    withMessage("Invalid category selected")
 
 ], updateBook)
 
 bookRoutes.post('/review/:bookId', addReview)
-
-
-
-
-
 
 
 

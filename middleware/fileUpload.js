@@ -4,7 +4,7 @@ import path from 'path';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); 
+    cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -22,12 +22,12 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
-    storage, 
-    fileFilter ,
-    limits : {
-            fileSize : 1024 * 1024 * 10 
-        },
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 1024 * 1024 * 10
+  },
 });
 
 export default upload;

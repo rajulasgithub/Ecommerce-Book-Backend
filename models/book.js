@@ -21,17 +21,17 @@ const bookSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    trim:true
+    trim: true
   },
   description: {
     type: String,
     required: true,
-    trim:true
+    trim: true
   },
   excerpt: {
     type: String,
     required: false,
-    trim:true
+    trim: true
   },
   page_count: {
     type: Number,
@@ -44,17 +44,17 @@ const bookSchema = new mongoose.Schema({
   author: {
     type: String,
     required: true,
-    trim:true
+    trim: true
   },
   genre: {
     type: String,
     required: true,
-    trim:true
+    trim: true
   },
   language: {
     type: String,
     required: true,
-    trim:true
+    trim: true
   },
   prize: {
     type: Number,
@@ -63,28 +63,28 @@ const bookSchema = new mongoose.Schema({
   category: {
     type: String,
     enum: ["Academic", "Fiction", "Non-Fiction", "Comics", "Children", "Poetry"],
-    required: true,  
+    required: true,
   },
   is_deleted: {
     type: Boolean,
     default: false
   },
-    reviews: [reviewSchema], 
-      avgRating: {
-      type: Number,
-      default: 0,
-    },
+  reviews: [reviewSchema],
+  avgRating: {
+    type: Number,
+    default: 0,
+  },
 
-    totalReviews: {
-      type: Number,
-      default: 0,
-    },
+  totalReviews: {
+    type: Number,
+    default: 0,
+  },
 
 },
   { timestamps: true });
 
 
-  bookSchema.methods.calculateRating = function () {
+bookSchema.methods.calculateRating = function () {
   if (this.reviews.length === 0) {
     this.avgRating = 0;
     this.totalReviews = 0;
