@@ -57,86 +57,80 @@ export const getUserOrders = async (req, res, next) => {
     if (userRole !== "customer") {
       return next(new HttpError("Only customers can view orders", 403));
     }
-    else {
-      const page = Math.max(1, Number(req.query.page) || 1);
-      const limit = Math.max(1, Number(req.query.limit) || 8);
-      const skip = (page - 1) * limit;
 
-      const userObjectId = new mongoose.Types.ObjectId(userId);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 8);
+    const skip = (page - 1) * limit;
 
-      const pipeline = [
-        { $match: { user: userObjectId } },
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
-        { $unwind: "$items" },
-
-        {
-          $lookup: {
-            from: "books",
-            localField: "items.book",
-            foreignField: "_id",
-            as: "bookDetails"
-          }
+    const pipeline = [
+      { $match: { user: userObjectId } },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "books",
+          localField: "items.book",
+          foreignField: "_id",
+          as: "bookDetails",
         },
+      },
+      { $unwind: "$bookDetails" },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 1,
+          createdAt: 1,
+          "items._id": 1,
+          "items.quantity": 1,
+          "items.price": 1,
+          "items.status": 1,
+          "items.cancelledAt": 1,
+          book: {
+            _id: "$bookDetails._id",
+            title: "$bookDetails.title",
+            author: "$bookDetails.author",
+            image: "$bookDetails.image",
+            price: "$bookDetails.price",
+          },
+          paymentMethod: 1,
+          totalAmount: 1,
+          address: 1,
+        },
+      },
+    ];
 
+    const orderItems = await Order.aggregate(pipeline);
 
-        { $unwind: "$bookDetails" },
+    const countPipeline = [
+      { $match: { user: userObjectId } },
+      { $unwind: "$items" },
+      { $count: "totalItems" },
+    ];
 
+    const countResult = await Order.aggregate(countPipeline);
 
-        { $sort: { createdAt: -1 } },
+    const totalItems = countResult[0]?.totalItems || 0;
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
 
-        { $skip: skip },
-        { $limit: limit },
-
-
-        {
-          $project: {
-            _id: 1,
-            createdAt: 1,
-            "items.quantity": 1,
-            "items.price": 1,
-
-            book: {
-              _id: "$bookDetails._id",
-              title: "$bookDetails.title",
-              author: "$bookDetails.author",
-              image: "$bookDetails.image",
-              price: "$bookDetails.price"
-            }
-          }
-        }
-      ];
-
-      const orderItems = await Order.aggregate(pipeline);
-
-      const countPipeline = [
-        { $match: { user: userObjectId } },
-        { $unwind: "$items" },
-        { $count: "totalItems" }
-      ];
-
-      const countResult = await Order.aggregate(countPipeline);
-
-      const totalItems = countResult[0]?.totalItems || 0;
-      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
-
-      return res.status(200).json({
-        message:
-          totalItems === 0
-            ? "No order items found"
-            : "Order items fetched successfully",
-        orderItems,
-        page,
-        limit,
-        totalPages,
-        totalItems
-      });
-
-    }
-
+    return res.status(200).json({
+      message:
+        totalItems === 0
+          ? "No order items found"
+          : "Order items fetched successfully",
+      orderItems,
+      page,
+      limit,
+      totalPages,
+      totalItems,
+    });
   } catch (error) {
     return next(new HttpError(error.message || "Unable to fetch orders", 500));
   }
 };
+
 
 
 // sellerorders
@@ -210,100 +204,87 @@ export const getSellerOrders = async (req, res, next) => {
 export const updateOrderItemStatus = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
+    const { orderId, itemId } = req.params;
+    const { action } = req.body;
 
-    if (userRole !== "customer") {
-      return next(new HttpError("Only customer can update quantity", 403));
+    console.log("IDs:", orderId, itemId);
+
+    if (!orderId || !itemId || !action) {
+      return next(new HttpError("Order ID, Item ID and new status are required", 400));
     }
-    else {
-      const { orderId, itemId } = req.params;
-      const { action } = req.body;
-      if (!orderId || !itemId || !action) {
-        return next(new HttpError("Order ID, Item ID and new status are required", 400));
+
+    const order = await Order.findById(orderId);
+    if (!order) return next(new HttpError("Order not found", 404));
+    console.log(order)
+
+    const item = order.items.id(itemId);
+    if (!item) return next(new HttpError("Order item not found", 404));
+
+    // Customer logic
+    if (userRole === "customer") {
+      if (order.user.toString() !== userId) {
+        
+        return next(new HttpError("You are not allowed to modify this order", 403));
       }
-      else {
-        r
-        const order = await Order.findById(orderId).populate("items.book");
 
-        if (!order) return next(new HttpError("Order not found", 404));
+      if (action !== "cancelled") {
+        return next(new HttpError("Customers can only cancel items", 403));
+      }
 
-        if (userRole === "customer") {
+      if (["dispatched", "delivered"].includes(item.status)) {
+        return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
+      }
 
-          if (order.user.toString() !== userId) {
-            return next(new HttpError("You are not allowed to modify this order", 403));
-          }
-
-
-          if (action !== "cancelled") {
-            return next(new HttpError("Customers can only cancel items", 403));
-          }
-        }
-
-        if (userRole === "seller") {
-
-          const itemCheck = order.items.id(itemId);
-          if (itemCheck?.book?.user.toString() !== userId) {
-            return next(new HttpError("This item does not belong to you", 403));
-          }
-
-          if (action === "cancelled") {
-            if (["dispatched", "delivered"].includes(itemCheck.action)) {
-              return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
-            }
-          }
-        }
-
-        const item = order.items.id(itemId);
-        if (!item) return next(new HttpError("Order item not found", 404));
-
-        if (item.action === "delivered") {
-          return next(new HttpError("Delivered item status cannot be changed", 400));
-        }
-
-        if (item.action === "cancelled") {
-          return next(new HttpError("This item is already cancelled", 400));
-        }
-
-        item.status = action;
-
-        if (action === "cancelled") item.cancelledAt = new Date();
-        if (action === "dispatched") item.dispatchedAt = new Date();
-        if (action === "delivered") item.deliveredAt = new Date();
-
-
-        const statuses = order.items.map(i => i.action);
-
-        if (statuses.every(s => s === "cancelled")) {
-          order.status = "cancelled";
-        }
-        else if (statuses.every(s => s === "delivered")) {
-          order.status = "delivered";
-        }
-        else if (statuses.every(s => s === "dispatched" || s === "delivered")) {
-          order.status = "dispatched";
-        }
-        else if (statuses.some(s => s === "cancelled")) {
-          order.status = "partially_cancelled";
-        }
-        else if (statuses.some(s => s === "dispatched")) {
-          order.status = "partially_dispatched";
-        }
-        else if (statuses.some(s => s === "delivered")) {
-          order.status = "partially_delivered";
-        }
-        else {
-          order.status = "ordered";
-        }
-
-        await order.save();
-
-        return res.status(200).json({
-          message: "Order item status updated successfully",
-          order,
-        });
+      if (item.status === "cancelled") {
+        return next(new HttpError("This item is already cancelled", 400));
       }
     }
+
+    // Seller logic (optional, if needed)
+    if (userRole === "seller") {
+      if (item?.book?.user.toString() !== userId) {
+        return next(new HttpError("This item does not belong to you", 403));
+      }
+
+      if (action === "cancelled" && ["dispatched", "delivered"].includes(item.status)) {
+        return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
+      }
+    }
+
+    // Update item status
+    item.status = action;
+    if (action === "cancelled") item.cancelledAt = new Date();
+    if (action === "dispatched") item.dispatchedAt = new Date();
+    if (action === "delivered") item.deliveredAt = new Date();
+
+    // Update overall order status based on items
+    const statuses = order.items.map(i => i.status);
+
+    if (statuses.every(s => s === "cancelled")) {
+      order.status = "cancelled";
+    } else if (statuses.every(s => s === "delivered")) {
+      order.status = "delivered";
+    } else if (statuses.every(s => ["dispatched", "delivered"].includes(s))) {
+      order.status = "dispatched";
+    } else if (statuses.some(s => s === "cancelled")) {
+      order.status = "partially_cancelled";
+    } else if (statuses.some(s => s === "dispatched")) {
+      order.status = "partially_dispatched";
+    } else if (statuses.some(s => s === "delivered")) {
+      order.status = "partially_delivered";
+    } else {
+      order.status = "ordered";
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      message: "Order item status updated successfully",
+      order,
+    });
 
   } catch (error) {
+    console.error(error);
     return next(
       new HttpError(error.message || "Unable to update item status", 500)
     );

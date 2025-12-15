@@ -1,5 +1,5 @@
 import emailTemplates from "../config/mail/emailTemplate.js";
-import { sendBlockUnblockEmail, sendDeletUserEmail } from "../config/mail/nodemailer.js";
+import { sendBlockUnblockEmail, sendDeleteBookEmail, sendDeletUserEmail } from "../config/mail/nodemailer.js";
 import HttpError from "../helpers/httpError.js";
 import { Book } from "../models/book.js";
 import { Order } from "../models/order.js";
@@ -269,3 +269,49 @@ export const getBooksBySeller = async (req, res, next) => {
 
 
 
+export const deleteBook = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { userRole } = req.userData;
+    console.log(id)
+    
+    if (userRole!== "admin") {
+      return next(new HttpError("Only sellers and admin can delete books", 403));
+    }
+    else {
+
+      const book = await Book.findById(id).populate("user");
+      if (!book) {
+        return next(new HttpError("Book not found", 404));
+      }
+      else {
+        book.is_deleted = true;
+        await book.save();
+
+        const user = await User.findById(book.user);
+        if (!user) {
+          return next(new HttpError("User not found", 404));
+        }
+
+
+        const subject = "Your book has been deleted";
+        const template = emailTemplates.delete_book_email;
+        const to = user.email
+        const context = {
+          received_by: user.firstName,
+          book_title: book.title,
+          book_author: book.author,
+          book_category: book.category,
+        };
+        sendDeleteBookEmail(to, subject, template, context);
+
+        return res.status(200).json({
+          success: true,
+          message: "Successfully deleted book and notified user",
+        });
+      }
+    }
+  } catch (error) {
+    return next(new HttpError(error.message, 500));
+  }
+};

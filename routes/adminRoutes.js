@@ -1,5 +1,5 @@
 import express from 'express'
-import { blockUnblockUser, deleteUser, getBooksBySeller, getDashboardStats, getUserDetails, listUsers, } from '../controllers/adminController.js'
+import { blockUnblockUser, deleteBook, deleteUser, getBooksBySeller, getDashboardStats, getUserDetails, listUsers, } from '../controllers/adminController.js'
 import userAuthCheck from '../middleware/authCheck.js'
 import { adminCheck } from '../middleware/adminAuth.js'
 import { check, param } from 'express-validator'
@@ -63,6 +63,11 @@ adminRoutes.get(
 adminRoutes.get("/dashboardstats", getDashboardStats);
 
 adminRoutes.get("/sellerbooks/:id", getBooksBySeller);
+
+adminRoutes.patch('/deletetbook/:id', [
+  param("id")
+    .isMongoId()
+], deleteBook)
 
 
 export default adminRoutes       

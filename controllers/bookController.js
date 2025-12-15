@@ -244,9 +244,10 @@ export const deleteBook = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { userRole } = req.userData;
-
-
-    if (userRole !== "seller" && userRole !== "admin") {
+      console.log(id)
+      console.log(req.params)
+    
+    if (userRole !== "seller") {
       return next(new HttpError("Only sellers and admin can delete books", 403));
     }
     else {
@@ -263,23 +264,14 @@ export const deleteBook = async (req, res, next) => {
         if (!user) {
           return next(new HttpError("User not found", 404));
         }
-
-
-        const subject = "Your book has been deleted";
-        const template = emailTemplates.delete_book_email;
-        const to = user.email
-        const context = {
-          received_by: user.firstName,
-          book_title: book.title,
-          book_author: book.author,
-          book_category: book.category,
-        };
-        sendDeleteBookEmail(to, subject, template, context);
-
-        return res.status(200).json({
+        else{
+           return res.status(200).json({
           success: true,
           message: "Successfully deleted book and notified user",
         });
+
+        }
+       
       }
     }
   } catch (error) {
