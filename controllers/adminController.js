@@ -151,6 +151,7 @@ export const blockUnblockUser = async (req, res, next) => {
 };
 
 
+
 // admin/getuser details
 export const getUserDetails = async (req, res, next) => {
   try {
@@ -276,7 +277,7 @@ export const deleteBook = async (req, res, next) => {
     console.log(id)
     
     if (userRole!== "admin") {
-      return next(new HttpError("Only sellers and admin can delete books", 403));
+      return next(new HttpError("Only  admin can delete books", 403));
     }
     else {
 
@@ -315,3 +316,7 @@ export const deleteBook = async (req, res, next) => {
     return next(new HttpError(error.message, 500));
   }
 };
+
+
+
+

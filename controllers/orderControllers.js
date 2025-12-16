@@ -140,124 +140,156 @@ export const getSellerOrders = async (req, res, next) => {
     const { userId, userRole } = req.userData;
 
     if (userRole !== "seller") {
-      return next(new HttpError("Only sellers can view orders for their books", 403));
+      return next(
+        new HttpError("Only sellers can view orders for their books", 403)
+      );
     }
-    else {
-      const orders = await Order.find()
-        .populate({
-          path: "items.book",
-          model: "Book",
 
-          populate: {
-            path: "user",
-            model: "User",
-            select: "firstName lastName email phone _id",
-          },
-        })
-        .populate({
+    const orders = await Order.find()
+      .populate({
+        path: "items.book",
+        model: "Book",
+        populate: {
           path: "user",
           model: "User",
           select: "firstName lastName email phone _id",
-        })
-        .sort({ createdAt: -1 })
-        .lean();
+        },
+      })
+      .populate({
+        path: "user",
+        model: "User",
+        select: "firstName lastName email phone _id",
+      })
+      .sort({ createdAt: -1 })
+      .lean();
 
-      const sellerOrders = orders
-        .map((order) => {
+    const sellerOrders = orders
+      .map((order) => {
+        const sellerItems = (order.items || []).filter((item) => {
+          if (!item.book) return false;
 
-          const sellerItems = (order.items || []).filter((item) => {
+          const bookUserId =
+            item.book.user?._id ?? item.book.user ?? null;
 
-            const bookUserId = book?.user?._id ?? book?.user ?? null;
-            if (!bookUserId) {
+          if (!bookUserId) return false;
 
-              return false;
-            }
-            return String(bookUserId) === String(userId);
-          });
+          return String(bookUserId) === String(userId);
+        });
 
+        if (!sellerItems.length) return null;
 
-          if (!sellerItems.length) return null;
+        return {
+          ...order,
+          items: sellerItems,
+        };
+      })
+      .filter(Boolean);
 
-
-          return {
-            ...order,
-            items: sellerItems,
-          };
-        })
-        .filter(Boolean);
-
-      return res.status(200).json({
-        message: "Seller orders fetched successfully",
-        orders: sellerOrders,
-      });
-
-    }
-
+    return res.status(200).json({
+      message: "Seller orders fetched successfully",
+      orders: sellerOrders,
+    });
   } catch (error) {
     console.error("getSellerOrders error:", error);
-    return next(new HttpError(error.message || "Unable to fetch seller orders", 500));
+    return next(
+      new HttpError(error.message || "Unable to fetch seller orders", 500)
+    );
   }
 };
 
 
 
-export const updateOrderItemStatus = async (req, res, next) => {
+
+  export const updateOrderItemStatus = async (req, res, next) => {
   try {
     const { userId, userRole } = req.userData;
     const { orderId, itemId } = req.params;
     const { action } = req.body;
 
-    console.log("IDs:", orderId, itemId);
-
     if (!orderId || !itemId || !action) {
-      return next(new HttpError("Order ID, Item ID and new status are required", 400));
+      return next(
+        new HttpError("Order ID, Item ID and new status are required", 400)
+      );
     }
 
-    const order = await Order.findById(orderId);
+    // 🔥 IMPORTANT: populate book.user
+    const order = await Order.findById(orderId).populate({
+      path: "items.book",
+      populate: { path: "user", model: "User" },
+    });
+
     if (!order) return next(new HttpError("Order not found", 404));
-    console.log(order)
 
     const item = order.items.id(itemId);
     if (!item) return next(new HttpError("Order item not found", 404));
 
-    // Customer logic
+    /* ================= CUSTOMER LOGIC (UNCHANGED) ================= */
     if (userRole === "customer") {
       if (order.user.toString() !== userId) {
-        
-        return next(new HttpError("You are not allowed to modify this order", 403));
+        return next(
+          new HttpError("You are not allowed to modify this order", 403)
+        );
       }
 
       if (action !== "cancelled") {
-        return next(new HttpError("Customers can only cancel items", 403));
+        return next(
+          new HttpError("Customers can only cancel items", 403)
+        );
       }
 
       if (["dispatched", "delivered"].includes(item.status)) {
-        return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
+        return next(
+          new HttpError(
+            "Cannot cancel dispatched/delivered items",
+            400
+          )
+        );
       }
 
       if (item.status === "cancelled") {
-        return next(new HttpError("This item is already cancelled", 400));
+        return next(
+          new HttpError("This item is already cancelled", 400)
+        );
       }
     }
 
-    // Seller logic (optional, if needed)
+    /* ================= SELLER LOGIC (FIXED) ================= */
     if (userRole === "seller") {
-      if (item?.book?.user.toString() !== userId) {
-        return next(new HttpError("This item does not belong to you", 403));
+      const book = item.book;
+
+      if (!book || !book.user) {
+        return next(
+          new HttpError("Book information is missing", 400)
+        );
       }
 
-      if (action === "cancelled" && ["dispatched", "delivered"].includes(item.status)) {
-        return next(new HttpError("Cannot cancel dispatched/delivered items", 400));
+      if (book.user._id.toString() !== userId) {
+        return next(
+          new HttpError("This item does not belong to you", 403)
+        );
+      }
+
+      if (
+        action === "cancelled" &&
+        ["dispatched", "delivered"].includes(item.status)
+      ) {
+        return next(
+          new HttpError(
+            "Cannot cancel dispatched/delivered items",
+            400
+          )
+        );
       }
     }
 
-    // Update item status
+    /* ================= UPDATE STATUS ================= */
     item.status = action;
+
     if (action === "cancelled") item.cancelledAt = new Date();
     if (action === "dispatched") item.dispatchedAt = new Date();
     if (action === "delivered") item.deliveredAt = new Date();
 
-    // Update overall order status based on items
+    /* ================= UPDATE ORDER STATUS ================= */
     const statuses = order.items.map(i => i.status);
 
     if (statuses.every(s => s === "cancelled")) {
@@ -282,9 +314,8 @@ export const updateOrderItemStatus = async (req, res, next) => {
       message: "Order item status updated successfully",
       order,
     });
-
   } catch (error) {
-    console.error(error);
+    console.error("updateOrderItemStatus error:", error);
     return next(
       new HttpError(error.message || "Unable to update item status", 500)
     );

@@ -13,10 +13,7 @@ bookRoutes.get('/newlyaddedbook', getNewlyAddedBooks)
 
 bookRoutes.use(userAuthCheck)
 
-bookRoutes.patch('/deletebook/:id' [
-  param("id")
-    .isMongoId()
-], deleteBook)
+bookRoutes.patch('/deletebook/:id',deleteBook)
 
 bookRoutes.get('/viewbooks', [
   check("page").

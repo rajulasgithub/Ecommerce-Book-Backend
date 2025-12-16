@@ -83,6 +83,7 @@ export const sendDeletUserEmail = async (to, subject, template, context) => {
 };
 
 export const sendDeleteBookEmail = async (to, subject, template, context) => {
+  console.log(subject)
   const mailOptions = {
     from: `"Readify" <${fromEmail}>`,
     template,

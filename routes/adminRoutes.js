@@ -64,10 +64,6 @@ adminRoutes.get("/dashboardstats", getDashboardStats);
 
 adminRoutes.get("/sellerbooks/:id", getBooksBySeller);
 
-adminRoutes.patch('/deletetbook/:id', [
-  param("id")
-    .isMongoId()
-], deleteBook)
-
+adminRoutes.patch('/deletebook/:id', deleteBook)
 
 export default adminRoutes       
