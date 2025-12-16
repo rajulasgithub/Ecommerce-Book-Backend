@@ -243,47 +243,48 @@ export const getProfile = async (req, res, next) => {
 
 export const getSellerStats = async (req, res, next) => {
   try {
-    const { userRole } = req.userData
-    if (userRole !== 'seller') {
-      return next(new HttpError("only  seller get stats", 403));
+    const { userRole, userId } = req.userData;
 
-    }
-    else {
-      const { userId } = req.userData;
-      const sellerBooks = await Book.find({ user: userId }, { _id: 1 });
-      const sellerBookIds = sellerBooks.map((b) => b._id);
-      const totalBooks = sellerBookIds.length;
-      const orders = await Order.find({
-        "items.book": { $in: sellerBookIds },
-        paymentStatus: "paid",
-      }).lean();
-      const totalOrders = orders.length;
-      let totalRevenue = 0;
-
-      orders.forEach((order) => {
-        order.items.forEach((item) => {
-          if (
-            sellerBookIds.some(
-              (id) => String(id) === String(item.book)
-            ) &&
-            item.status !== "cancelled"
-          ) {
-            totalRevenue += item.price * item.quantity;
-          }
-        });
-      });
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          totalBooks,
-          totalOrders,
-          totalRevenue,
-        },
-      });
-
+    if (userRole !== "seller") {
+      return next(new HttpError("Only sellers can get stats", 403));
     }
 
+    // Count of non-deleted books
+    const totalBooks = await Book.countDocuments({ user: userId, is_deleted: false });
+
+    // Fetch all seller books (including deleted) to get total orders
+    const sellerBooks = await Book.find({ user: userId }, { _id: 1 });
+    const sellerBookIds = sellerBooks.map((b) => b._id);
+
+    // Get all orders that contain any seller book and payment is done
+    const orders = await Order.find({
+      "items.book": { $in: sellerBookIds },
+      paymentStatus: "paid",
+    }).lean();
+
+    const totalOrders = orders.length;
+
+    // Calculate total revenue only from non-cancelled items
+    let totalRevenue = 0;
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
+        if (
+          sellerBookIds.some((id) => String(id) === String(item.book)) &&
+          item.status !== "cancelled"
+        ) {
+          totalRevenue += item.price * item.quantity;
+        }
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalBooks,
+        totalOrders,
+        totalRevenue,
+      },
+    });
   } catch (err) {
     console.error(err);
     return next(new HttpError("Failed to fetch seller stats", 500));

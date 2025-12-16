@@ -38,7 +38,6 @@ export const addToWishList = async (req, res, next) => {
         }
       }
     }
-
   } catch (error) {
     return next(new HttpError(error.message, 500));
   }
