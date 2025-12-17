@@ -15,7 +15,7 @@ dotenv.config()
 
 app.use(
   cors({
-    origin: "readify-next-mphm9aa6a-rajulas-projects.vercel.app", 
+    origin: "https://readify-next.vercel.app/", 
     credentials: true, 
   })
 );
