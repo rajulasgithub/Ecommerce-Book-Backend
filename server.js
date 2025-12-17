@@ -15,10 +15,13 @@ dotenv.config()
 
 app.use(
   cors({
-    origin: "https://readify-next.vercel.app", 
-    credentials: true, 
+    origin: "https://readify-next.vercel.app",
+    credentials: true,
+    methods: ["GET", "POST", "DELETE","PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
