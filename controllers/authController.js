@@ -12,10 +12,8 @@ import { sendWelcomeEmail } from "../config/mail/nodemailer.js";
 // user register
 export const userRegister = async (req, res, next) => {
   try {
-    console.log("body is", req.body);
+   
     const errors = validationResult(req);
-    console.log(errors);
-
     if (!errors.isEmpty()) {
       return next(new HttpError("Invalid data inputs passed", 400));
     } else {
@@ -249,14 +247,11 @@ export const getSellerStats = async (req, res, next) => {
       return next(new HttpError("Only sellers can get stats", 403));
     }
 
-    // Count of non-deleted books
     const totalBooks = await Book.countDocuments({ user: userId, is_deleted: false });
 
-    // Fetch all seller books (including deleted) to get total orders
     const sellerBooks = await Book.find({ user: userId }, { _id: 1 });
     const sellerBookIds = sellerBooks.map((b) => b._id);
 
-    // Get all orders that contain any seller book and payment is done
     const orders = await Order.find({
       "items.book": { $in: sellerBookIds },
       paymentStatus: "paid",
@@ -264,7 +259,6 @@ export const getSellerStats = async (req, res, next) => {
 
     const totalOrders = orders.length;
 
-    // Calculate total revenue only from non-cancelled items
     let totalRevenue = 0;
     orders.forEach((order) => {
       order.items.forEach((item) => {
